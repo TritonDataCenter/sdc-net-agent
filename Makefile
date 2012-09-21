@@ -28,18 +28,22 @@ JSL_CONF_NODE	 = tools/jsl.node.conf
 JSL_FILES_NODE   = $(JS_FILES)
 JSSTYLE_FILES	 = $(JS_FILES)
 JSSTYLE_FLAGS    = -o indent=4,doxygen,unparenthesized-return=0
-REPO_MODULES	 = src/node-dummy
-SMF_MANIFESTS_IN = smf/manifests/bapi.xml.in
+#REPO_MODULES	 = src/node-dummy
+SMF_MANIFESTS_IN = smf/manifests/heartbeater.xml.in
 
 
-NODE_PREBUILT_VERSION=v0.6.19
-NODE_PREBUILT_TAG=zone
+NODE_PREBUILT_VERSION=v0.8.9
+NODE_PREBUILT_TAG=gz
 
 
 include ./tools/mk/Makefile.defs
 include ./tools/mk/Makefile.node_prebuilt.defs
 include ./tools/mk/Makefile.node_deps.defs
 include ./tools/mk/Makefile.smf.defs
+
+ROOT            := $(shell pwd)
+RELEASE_TARBALL := heartbeater-pkg-$(STAMP).tar.gz
+TMPDIR          := /tmp/$(STAMP)
 
 #
 # Repo-specific targets
@@ -56,6 +60,22 @@ CLEAN_FILES += $(TAP) ./node_modules/tap
 .PHONY: test
 test: $(TAP)
 	TAP=1 $(TAP) test/*.test.js
+
+.PHONY: release
+release: all deps docs $(SMF_MANIFESTS)
+	@echo "Building $(RELEASE_TARBALL)"
+	@mkdir -p $(TMPDIR)/heartbeater
+	cd $(ROOT) && $(NPM) install
+	cp -r $(ROOT)/build \
+    $(ROOT)/bin \
+    $(ROOT)/Makefile \
+    $(ROOT)/node_modules \
+    $(ROOT)/package.json \
+    $(ROOT)/smf \
+    $(ROOT)/npm \
+    $(TMPDIR)/heartbeater
+	(cd $(TMPDIR) && $(TAR) -zcf $(ROOT)/$(RELEASE_TARBALL) *)
+	@rm -rf $(TMPDIR)
 
 include ./tools/mk/Makefile.deps
 include ./tools/mk/Makefile.node_prebuilt.targ

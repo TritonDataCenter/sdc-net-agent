@@ -1,19 +1,22 @@
 {
-  "name": "boilerplateapi",
-  "description": "SmartDataCenter Boilerplate API",
-  "version": "1.0.0",
-  "author": "Joyent (joyent.com)",
-  "private": true,
-  "dependencies": {
-    "restify": "1.4.2",
-    "node-uuid": "1.3.3",
-    "filed": "0.0.5",
-    "bunyan": "0.8.0"
-  },
-  "devDependencies": {
-    "tap": "0.2"
-  },
-  "scripts": {
-    "start": "node ./server.js"
-  }
+    "name": "heartbeater",
+    "description": "SmartDC Node Heartbeat Agent",
+    "version": "2.1.0",
+    "author": "Joyent (joyent.com)",
+    "dependencies": {
+        "nodeunit": "0.7.4",
+        "sprintf": "0.1.1",
+        "async": "0.1.18",
+        "amqp": "git://github.com/postwait/node-amqp.git#7becb031a3517a22490addc46654e807bce5f37e",
+        "amqp-plus": "git://github.com/orlandov/node-amqp-plus.git#a67f9547c116bf991b974ce5b9cd090c8b222fdb",
+        "zfs": "git+ssh://git@git.joyent.com:node_zfs.git#b30860be15d298acaa3bca0ae0e32c3ba241304b"
+    },
+    "scripts": {
+        "postinstall":   "npm/postinstall.sh",
+        "postuninstall": "npm/postuninstall.sh"
+    },
+    "bin": {
+        "heartbeater": "./bin/heartbeater.js",
+        "heartbeater-client": "./bin/heartbeater-client.js"
+    }
 }
