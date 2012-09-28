@@ -17,7 +17,7 @@
 #
 # Files
 #
-DOC_FILES	 = index.restdown boilerplateapi.restdown
+DOC_FILES	 = index.restdown
 JS_FILES	:= $(shell ls *.js 2>/dev/null) $(shell find lib test -name '*.js' 2>/dev/null)
 JSL_CONF_NODE	 = tools/jsl.node.conf
 JSL_FILES_NODE   = $(JS_FILES)
@@ -35,7 +35,7 @@ include ./tools/mk/Makefile.node_deps.defs
 include ./tools/mk/Makefile.smf.defs
 
 NAME		:= heartbeater
-RELEASE_TARBALL := $(NAME)-pkg-$(STAMP).tgz
+RELEASE_TARBALL := $(NAME)-$(STAMP).tgz
 TMPDIR          := /tmp/$(STAMP)
 NODEUNIT	= $(TOP)/node_modules/.bin/nodeunit
 
