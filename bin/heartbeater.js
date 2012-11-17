@@ -209,6 +209,7 @@ function updateSample() {
         function (cb) { // zone info
             VM.lookup({}, {'full': true}, function (err, vmobjs) {
                 var vmobj;
+                var hbVm;
                 var running = 0;
                 var newStatus;
                 var notRunning = 0;
@@ -220,6 +221,7 @@ function updateSample() {
                     markDirty();
                     return cb(new Error('unable to update VM list.'));
                 } else {
+                    newSample.vms = {};
                     newSample.zoneStatus = [];
 
                     // add GZ info for historical reasons
@@ -230,6 +232,13 @@ function updateSample() {
                     for (vmobj in vmobjs) {
                         vmobj = vmobjs[vmobj];
                         if (!vmobj.do_not_inventory) {
+                            hbVm = {
+                                uuid: vmobj.uuid,
+                                owner_uuid: vmobj.owner_uuid,
+                                quota: vmobj.quota,
+                                max_physical_memory: vmobj.max_physical_memory,
+                                state: vmobj.zone_state
+                            };
                             newStatus = [
                                 vmobj.zoneid ? vmobj.zoneid : '-',
                                 vmobj.zonename,
@@ -244,9 +253,11 @@ function updateSample() {
                                 // this is only conditional until all platforms
                                 // we might run this heartbeater on support the
                                 // last_modified property.
+                                hbVm.last_modified = vmobj.last_modified;
                                 newStatus.push(vmobj.last_modified);
                             }
                             newSample.zoneStatus.push(newStatus);
+                            newSample.vms[vmobj.uuid] = hbVm;
                             if (vmobj.zone_state === 'running') {
                                 running++;
                             } else {
