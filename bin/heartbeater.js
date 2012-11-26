@@ -237,7 +237,8 @@ function updateSample() {
                                 owner_uuid: vmobj.owner_uuid,
                                 quota: vmobj.quota,
                                 max_physical_memory: vmobj.max_physical_memory,
-                                state: vmobj.zone_state
+                                zone_state: vmobj.zone_state,
+                                state: vmobj.state
                             };
                             newStatus = [
                                 vmobj.zoneid ? vmobj.zoneid : '-',
