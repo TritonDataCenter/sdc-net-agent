@@ -1,3 +1,4 @@
+var fs = require('fs');
 var path = require('path');
 var amqp = require('amqp-plus');
 var async = require('async');
@@ -36,6 +37,9 @@ var samplerLock = false;
 // maxInterval ensures the msg is marked dirty every max_interval ms
 var pingInterval;
 var maxInterval;
+
+// this watcher watches whether /etc/zones has changed
+var cfg_watcher = null;
 
 // this is the subprocess that watches for zone changes
 var watcher = null;
@@ -376,10 +380,26 @@ function startZoneWatcher() {
     });
 }
 
+function startZoneConfigWatcher() {
+    cfg_watcher = fs.watch('/etc/zones', function (evt, file) {
+        // When we get here something changed in /etc/zones and if that happens
+        // it means that something has changed about one of the zones and in
+        // turn it means that we need to recheck.
+        process.stdout.write('c');
+        markDirty();
+    });
+    console.log('INFO: start fs.watch() for /etc/zones');
+}
+
 function sendSample() {
     if (!watcher) {
         // watcher is either not running or exited, try to start it.
         startZoneWatcher();
+    }
+
+    if (!cfg_watcher) {
+        // start the /etc/zones watcher if it's not watching.
+        startZoneConfigWatcher();
     }
 
     if (isDirty) {
