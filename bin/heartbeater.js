@@ -242,7 +242,8 @@ function updateSample() {
                                 quota: vmobj.quota,
                                 max_physical_memory: vmobj.max_physical_memory,
                                 zone_state: vmobj.zone_state,
-                                state: vmobj.state
+                                state: vmobj.state,
+                                brand: vmobj.brand
                             };
                             newStatus = [
                                 vmobj.zoneid ? vmobj.zoneid : '-',
