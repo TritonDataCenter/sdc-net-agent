@@ -193,13 +193,26 @@ function markDirty() {
     isDirty = true;
 }
 
+var updateSampleAttempts = 0;
+var updateSampleAttemptsMax = 5;
+
 function updateSample() {
     var newSample = {};
 
     if (samplerLock) {
-        console.log('ERROR: samplerLock is still held, skipping update.');
+        updateSampleAttempts++;
+
+        if (updateSampleAttempts === updateSampleAttemptsMax) {
+            console.error('ERROR: Something bad happened: samplerLock was held for '
+                 + updateSampleAttemptsMax + ' consecutive attempts. Exiting.');
+            process.exit(1);
+        }
+        console.error('ERROR: samplerLock is still held, skipping update. Attempt #'
+             + updateSampleAttempts);
         return;
     }
+
+    updateSampleAttempts = 0;
 
     samplerLock = true;
 
