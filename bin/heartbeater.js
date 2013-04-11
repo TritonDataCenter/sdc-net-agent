@@ -224,7 +224,22 @@ function updateSample() {
 
     async.series([
         function (cb) { // zone info
-            VM.lookup({}, {'full': true}, function (err, vmobjs) {
+            var lookup_fields = [
+                'brand',
+                'do_not_inventory',
+                'last_modified',
+                'max_physical_memory',
+                'owner_uuid',
+                'quota',
+                'state',
+                'uuid',
+                'zone_state',
+                'zoneid',
+                'zonename',
+                'zonepath'
+            ];
+
+            VM.lookup({}, {fields: lookup_fields}, function (err, vmobjs) {
                 var vmobj;
                 var hbVm;
                 var running = 0;
