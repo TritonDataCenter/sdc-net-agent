@@ -19,6 +19,9 @@ var debug = !!process.env.DEBUG;
 var max_interval = 60000;  // milliseconds frequency for doing full reload
 var ping_interval = 5000;  // milliseconds frequency of sending msgs
 
+// The boot time of the global zone
+var boot_time;
+
 // Global VM state
 var exchange;
 var routingKey;
@@ -129,8 +132,18 @@ function connect() {
     });
 }
 
-// Connect now!
-connect();
+execFile(
+    '/usr/bin/kstat',
+    [ '-p', '-m', 'unix', '-n', 'system_misc', '-s', 'boot_time'],
+    function (error, stdout, stderr) {
+        if (error) {
+            throw error;
+        }
+        boot_time = parseInt(stdout.toString().split(/\s+/)[1], 10);
+
+        // Connect now!
+        connect();
+    });
 
 function setupPingQueue(uuid) {
     var resource = 'heartbeat';
@@ -203,12 +216,14 @@ function updateSample() {
         updateSampleAttempts++;
 
         if (updateSampleAttempts === updateSampleAttemptsMax) {
-            console.error('ERROR: Something bad happened: samplerLock was held for '
-                 + updateSampleAttemptsMax + ' consecutive attempts. Exiting.');
+            console.error(
+                'ERROR: Something bad happened: samplerLock was held for '
+                + updateSampleAttemptsMax + ' consecutive attempts. Exiting.');
             process.exit(1);
         }
-        console.error('ERROR: samplerLock is still held, skipping update. Attempt #'
-             + updateSampleAttempts);
+        console.error(
+            'ERROR: samplerLock is still held, skipping update. Attempt #'
+            + updateSampleAttempts);
         return;
     }
 
@@ -377,6 +392,7 @@ function updateSample() {
             });
         },
         function (cb) { // timestamp
+            newSample.boot_time = boot_time;
             newSample.timestamp = (new Date()).getTime() / 1000;
             cb();
         }
