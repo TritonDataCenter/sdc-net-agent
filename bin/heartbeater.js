@@ -241,6 +241,7 @@ function updateSample() {
         function (cb) { // zone info
             var lookup_fields = [
                 'brand',
+                'cpu_cap',
                 'do_not_inventory',
                 'last_modified',
                 'max_physical_memory',
@@ -286,7 +287,8 @@ function updateSample() {
                                 max_physical_memory: vmobj.max_physical_memory,
                                 zone_state: vmobj.zone_state,
                                 state: vmobj.state,
-                                brand: vmobj.brand
+                                brand: vmobj.brand,
+                                cpu_cap: vmobj.cpu_cap
                             };
                             newStatus = [
                                 vmobj.zoneid ? vmobj.zoneid : '-',
