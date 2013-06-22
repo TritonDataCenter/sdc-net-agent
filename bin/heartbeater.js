@@ -6,6 +6,7 @@ var sprintf = require('sprintf').sprintf;
 var system = require('/usr/node/node_modules/system');
 var zfs = require('zfs').zfs;
 var zpool = require('zfs').zpool;
+var Zone = require('tracker/lib/zone');
 
 var cp = require('child_process');
 var exec = cp.exec;
@@ -209,6 +210,189 @@ function markDirty() {
 var updateSampleAttempts = 0;
 var updateSampleAttemptsMax = 5;
 
+function gatherDiskUsage(vms, callback) {
+    // 1) the sum of the disk used by the kvm VMs' zvols' volsizes
+    // 2) the sum of the quotas for kvm VMs (this space has a different usage
+    //     pattern from zone's quotas)
+    // 3) the sum of the quotas for non-kvm VMs
+    // 4) the sum of the cores quotas for all VMs of all brands
+    // 5) the sum of the disk used by images installed on the CN
+    // 6) the total size of the pool (this we already have in here I believe)
+    // 7) the "system space" which would be the total size of the pool minus
+    //    the sum of the other numbers here and include things like the files
+    //    in /opt, kernel dumps, and anything else written that's not part of
+    //    the above.
+
+    var usage = {
+        kvm_zvol_used_bytes: 0,
+        kvm_quota_bytes: 0,
+        zone_quota_bytes: 0,
+        cores_quota_bytes: 0,
+        installed_images_used_bytes: 0,
+//         system_used_bytes: 0
+        pool_size_bytes: 0
+    };
+
+    var datasets = {};
+
+    async.waterfall([
+        function (cb) {
+            var fields = [
+                'name', 'used', 'avail', 'refer', 'type', 'mountpoint',
+                'quota', 'origin' ];
+
+            var listopts = {
+                type: 'filesystem,volume',
+                fields: fields,
+                parseable: true
+            };
+
+            // list all filesystems and volumes
+            zfs.list(null, listopts, function (error, f, lines) {
+                if (error) {
+                    callback(error);
+                    return;
+                }
+
+                for (var linesIdx in lines) {
+                    var line = lines[linesIdx];
+
+                    var name = line[0];
+
+                    datasets[name] = {};
+
+                    for (var fieldIdx in fields) {
+                        var field = fields[fieldIdx];
+                        datasets[name][field] = line[fieldIdx];
+                    }
+                }
+                cb();
+            });
+        },
+        function (cb) {
+            var vm;
+
+//             Object.keys(vms).forEach(function (uuid) {
+            async.forEach(Object.keys(vms), function (uuid, fecb) {
+                vm = vms[uuid];
+
+                if (vm.brand === 'kvm') {
+                    // #1
+                    Zone.get(uuid, function (error, zone) {
+                        var devices = zone.devices;
+                        var device;
+
+                        for (var deviceIdx in devices) {
+                            device = devices[deviceIdx];
+
+                            var match = device['match'];
+                            var rdskpath = '/dev/zvol/rdsk/';
+                            var rdskpathlen = rdskpath.length;
+                            var ds = match.slice(rdskpathlen);
+
+                            if (datasets.hasOwnProperty(ds)) {
+                                usage.kvm_zvol_used_bytes +=
+                                    parseInt(datasets[ds].used, 10);
+                            }
+                        }
+
+                        // #2
+                        if (datasets.hasOwnProperty(vm.zonepath.slice(1))) {
+                            usage.kvm_quota_bytes += parseInt(
+                                datasets[vm.zonepath.slice(1)].quota, 10);
+                        }
+                        fecb();
+                    });
+
+                } else {
+                    // #3
+                    if (datasets.hasOwnProperty(vm.zonepath.slice(1))) {
+                        usage.zone_quota_bytes += parseInt(
+                            datasets[vm.zonepath.slice(1)].quota, 10);
+                    }
+
+                    // #4
+                    var coreds = datasets[vm.zonepath.slice(1) + '/cores'] ||
+                        datasets['zones/cores/' + vm.uuid];
+                    if (coreds) {
+                        usage.cores_quota_bytes +=
+                            parseInt(coreds.quota, 10);
+                    }
+
+                    fecb();
+                }
+            },
+            function (error) {
+                cb(error);
+            });
+        },
+        function (cb) {
+            var vm;
+            // #5
+            // Determine which datasets in the zpool are "installed" images
+            // - must not be a vm's zonepath
+            // - must not have an origin
+            var imageDatasets = JSON.parse(JSON.stringify(datasets));
+            var d;
+
+            for (var vmuuid in vms) {
+                vm = vms[vmuuid];
+
+                for (d in datasets) {
+                    // Delete zone-related zones
+                    if (d.match('^' + vm.zonepath.slice(1) + '(/?.*$)?$')) {
+                        delete imageDatasets[d];
+                    }
+
+                    // Delete zpool entries
+                    if (d.indexOf('/') === -1) {
+                        delete imageDatasets[d];
+                    }
+
+                    // Delete system datasets
+                    if (['usbkey', 'var', 'swap', 'opt', 'dump', 'cores',
+                            'config']
+                            .indexOf(d.slice(d.indexOf('/')+1)) !== -1)
+                    {
+                        delete imageDatasets[d];
+                    }
+
+                    if (datasets[d].origin !== '-') {
+                        delete imageDatasets[d];
+                    }
+                }
+            }
+
+            for (d in imageDatasets) {
+                usage.installed_images_used_bytes
+                    += parseInt(datasets[d].used, 10);
+            }
+
+            cb();
+        },
+        function (cb) {
+            // #6
+            zpool.list(
+                'zones', { parseable: true, fields: ['size'] },
+                function (error, fields, pools) {
+                    if (error) {
+                        cb(error);
+                        return;
+                    }
+                    usage.pool_size_bytes = parseInt(pools[0][0], 10);
+                    cb();
+                });
+        }
+    ],
+    function (error) {
+        if (error) {
+            console.warn(error.message);
+            console.warn(error.stack);
+        }
+        callback(null, usage);
+    });
+}
+
 function updateSample() {
     var newSample = {};
 
@@ -233,6 +417,7 @@ function updateSample() {
 
     // set this now in case another update comes in while we're running.
     isDirty = false;
+    var vms;
 
     // newline and timestamp when we *start* an update
     process.stdout.write('\n[' + (new Date()).toISOString() + '] ');
@@ -263,12 +448,14 @@ function updateSample() {
                 var notRunning = 0;
                 var nonInventory = 0;
 
+
                 if (err) {
                     console.log(
                         'ERROR: unable update VM list: ' + err.message);
                     markDirty();
                     return cb(new Error('unable to update VM list.'));
                 } else {
+                    vms = {};
                     newSample.vms = {};
                     newSample.zoneStatus = [];
 
@@ -279,6 +466,7 @@ function updateSample() {
 
                     for (vmobj in vmobjs) {
                         vmobj = vmobjs[vmobj];
+                        vms[vmobj.uuid] = vmobj;
                         if (!vmobj.do_not_inventory) {
                             hbVm = {
                                 uuid: vmobj.uuid,
@@ -353,9 +541,8 @@ function updateSample() {
                              */
                             var bytes_to_GiB = 1024 * 1024 * 1024;
                             var allocated = Number(props.used) / bytes_to_GiB;
-                            var size
-                            = (Number(props.used) + Number(props.available))
-                            / bytes_to_GiB;
+                            var size = (Number(props.used)
+                                + Number(props.available)) / bytes_to_GiB;
 
                             newSample.zpoolStatus.push([
                                 pool,
@@ -388,6 +575,19 @@ function updateSample() {
                     return cb();
                 } else {
                     console.log('Warning: unable to get memory info:'
+                        + JSON.stringify(err));
+                    return cb(err);
+                }
+            });
+        },
+        function (cb) { // diskinfo
+            gatherDiskUsage(vms, function (err, diskinfo) {
+                if (!err && diskinfo) {
+                    newSample.diskinfo = diskinfo;
+                    process.stdout.write('M');
+                    return cb();
+                } else {
+                    console.log('Warning: unable to get disk info:'
                         + JSON.stringify(err));
                     return cb(err);
                 }

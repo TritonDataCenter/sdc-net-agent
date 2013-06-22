@@ -4,12 +4,14 @@
     "version": "2.1.0",
     "author": "Joyent (joyent.com)",
     "dependencies": {
+        "amqp-plus": "git://github.com/orlandov/node-amqp-plus.git#a67f9547c116bf991b974ce5b9cd090c8b222fdb",
+        "amqp": "git://github.com/postwait/node-amqp.git#7becb031a3517a22490addc46654e807bce5f37e",
+        "async": "0.1.18",
         "nodeunit": "0.7.4",
         "sprintf": "0.1.1",
-        "async": "0.1.18",
-        "amqp": "git://github.com/postwait/node-amqp.git#7becb031a3517a22490addc46654e807bce5f37e",
-        "amqp-plus": "git://github.com/orlandov/node-amqp-plus.git#a67f9547c116bf991b974ce5b9cd090c8b222fdb",
-        "zfs": "git+ssh://git@git.joyent.com:node_zfs.git#b30860be15d298acaa3bca0ae0e32c3ba241304b"
+        "tracker": "git+ssh://git@git.joyent.com:node-tracker.git#3a139906c9eb8d8684ac54cf54cd010315856042"
+        "zfs": "git+ssh://git@git.joyent.com:node_zfs.git#d1b5837266761746cba234e963c1ff128b469fce",
+
     },
     "scripts": {
         "postinstall":   "npm/postinstall.sh",
