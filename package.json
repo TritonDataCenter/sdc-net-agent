@@ -9,8 +9,8 @@
         "async": "0.1.18",
         "nodeunit": "0.7.4",
         "sprintf": "0.1.1",
-        "tracker": "git+ssh://git@git.joyent.com:node-tracker.git#3a139906c9eb8d8684ac54cf54cd010315856042"
-        "zfs": "git+ssh://git@git.joyent.com:node_zfs.git#d1b5837266761746cba234e963c1ff128b469fce",
+        "tracker": "git+ssh://git@git.joyent.com:node-tracker.git#3a139906c9eb8d8684ac54cf54cd010315856042",
+        "zfs": "git+ssh://git@git.joyent.com:node_zfs.git#d1b5837266761746cba234e963c1ff128b469fce"
 
     },
     "scripts": {
