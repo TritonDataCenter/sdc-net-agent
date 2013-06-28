@@ -457,12 +457,6 @@ function updateSample() {
                 } else {
                     vms = {};
                     newSample.vms = {};
-                    newSample.zoneStatus = [];
-
-                    // add GZ info for historical reasons
-                    newSample.zoneStatus.push(
-                        [0, 'global', 'running',
-                         '/', '', 'liveimg', 'shared', '0']);
 
                     for (vmobj in vmobjs) {
                         vmobj = vmobjs[vmobj];
@@ -495,7 +489,6 @@ function updateSample() {
                                 hbVm.last_modified = vmobj.last_modified;
                                 newStatus.push(vmobj.last_modified);
                             }
-                            newSample.zoneStatus.push(newStatus);
                             newSample.vms[vmobj.uuid] = hbVm;
                             if (vmobj.zone_state === 'running') {
                                 running++;
