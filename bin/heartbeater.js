@@ -212,72 +212,56 @@ var updateSampleAttemptsMax = 5;
 
 function gatherDiskUsage(vms, callback) {
     // 1) the sum of the disk used by the kvm VMs' zvols' volsizes
-    // 2) the sum of the quotas for kvm VMs (this space has a different usage
+    // 2) the sum of the maximum capacity of VMs' zvols
+    // 3) the sum of the quotas for kvm VMs (this space has a different usage
     //     pattern from zone's quotas)
-    // 3) the sum of the quotas for non-kvm VMs
-    // 4) the sum of the cores quotas for all VMs of all brands
-    // 5) the sum of the disk used by images installed on the CN
-    // 6) the total size of the pool (this we already have in here I believe)
-    // 7) the "system space" which would be the total size of the pool minus
+    // 4) the sum of the quotas for non-kvm VMs
+    // 5) the sum of the cores quotas for all VMs of all brands
+    // 6) the sum of the disk used by images installed on the CN
+    // 7) the total size of the pool (this we already have in here I believe)
+    // 8) the "system space" which would be the total size of the pool minus
     //    the sum of the other numbers here and include things like the files
     //    in /opt, kernel dumps, and anything else written that's not part of
     //    the above.
 
     var usage = {
         kvm_zvol_used_bytes: 0,
+        kvm_zvol_volsize_bytes: 0,
         kvm_quota_bytes: 0,
         zone_quota_bytes: 0,
         cores_quota_bytes: 0,
         installed_images_used_bytes: 0,
-//         system_used_bytes: 0
         pool_size_bytes: 0
+//         system_used_bytes: 0
     };
 
     var datasets = {};
 
     async.waterfall([
         function (cb) {
-            var fields = [
-                'name', 'used', 'avail', 'refer', 'type', 'mountpoint',
-                'quota', 'origin' ];
-
-            var listopts = {
-                type: 'filesystem,volume',
-                fields: fields,
-                parseable: true
-            };
-
-            // list all filesystems and volumes
-            zfs.list(null, listopts, function (error, f, lines) {
-                if (error) {
-                    callback(error);
-                    return;
-                }
-
-                for (var linesIdx in lines) {
-                    var line = lines[linesIdx];
-
-                    var name = line[0];
-
-                    datasets[name] = {};
-
-                    for (var fieldIdx in fields) {
-                        var field = fields[fieldIdx];
-                        datasets[name][field] = line[fieldIdx];
+            zfs.get(
+                null, // Look up properties for *all* datasets
+                [ 'name', 'used', 'avail', 'refer', 'type', 'mountpoint',
+                'quota', 'origin', 'volsize'],
+                true, // Parseabe
+                function (geterr, props) {
+                    if (geterr) {
+                        cb(geterr);
+                        return;
                     }
-                }
-                cb();
+
+                    datasets = props;
+                    cb();
             });
         },
         function (cb) {
             var vm;
 
-//             Object.keys(vms).forEach(function (uuid) {
             async.forEach(Object.keys(vms), function (uuid, fecb) {
                 vm = vms[uuid];
 
                 if (vm.brand === 'kvm') {
-                    // #1
+                    // #1,2
                     Zone.get(uuid, function (error, zone) {
                         var devices = zone.devices;
                         var device;
@@ -293,6 +277,8 @@ function gatherDiskUsage(vms, callback) {
                             if (datasets.hasOwnProperty(ds)) {
                                 usage.kvm_zvol_used_bytes +=
                                     parseInt(datasets[ds].used, 10);
+                                usage.kvm_zvol_volsize_bytes +=
+                                    parseInt(datasets[ds].volsize, 10);
                             }
                         }
 
