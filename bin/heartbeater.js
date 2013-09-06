@@ -237,6 +237,11 @@ function gatherDiskUsage(vms, callback) {
 
     var datasets = {};
 
+    function toInt(val) {
+        var a = parseInt(val, 10);
+        return (isNaN(a) ? 0 : a);
+    }
+
     async.waterfall([
         function (cb) {
             zfs.get(
@@ -276,16 +281,16 @@ function gatherDiskUsage(vms, callback) {
 
                             if (datasets.hasOwnProperty(ds)) {
                                 usage.kvm_zvol_used_bytes +=
-                                    parseInt(datasets[ds].used, 10);
+                                    toInt(datasets[ds].used);
                                 usage.kvm_zvol_volsize_bytes +=
-                                    parseInt(datasets[ds].volsize, 10);
+                                    toInt(datasets[ds].volsize);
                             }
                         }
 
                         // #2
                         if (datasets.hasOwnProperty(vm.zonepath.slice(1))) {
-                            usage.kvm_quota_bytes += parseInt(
-                                datasets[vm.zonepath.slice(1)].quota, 10);
+                            usage.kvm_quota_bytes += toInt(
+                                datasets[vm.zonepath.slice(1)].quota);
                         }
                         fecb();
                     });
@@ -293,8 +298,8 @@ function gatherDiskUsage(vms, callback) {
                 } else {
                     // #3
                     if (datasets.hasOwnProperty(vm.zonepath.slice(1))) {
-                        usage.zone_quota_bytes += parseInt(
-                            datasets[vm.zonepath.slice(1)].quota, 10);
+                        usage.zone_quota_bytes += toInt(
+                            datasets[vm.zonepath.slice(1)].quota);
                     }
 
                     // #4
@@ -302,7 +307,7 @@ function gatherDiskUsage(vms, callback) {
                         datasets['zones/cores/' + vm.uuid];
                     if (coreds) {
                         usage.cores_quota_bytes +=
-                            parseInt(coreds.quota, 10);
+                            toInt(coreds.quota);
                     }
 
                     fecb();
@@ -351,7 +356,7 @@ function gatherDiskUsage(vms, callback) {
 
             for (d in imageDatasets) {
                 usage.installed_images_used_bytes
-                    += parseInt(datasets[d].used, 10);
+                    += toInt(datasets[d].used);
             }
 
             cb();
@@ -365,7 +370,7 @@ function gatherDiskUsage(vms, callback) {
                         cb(error);
                         return;
                     }
-                    usage.pool_size_bytes = parseInt(pools[0][0], 10);
+                    usage.pool_size_bytes = toInt(pools[0][0]);
                     cb();
                 });
         }
