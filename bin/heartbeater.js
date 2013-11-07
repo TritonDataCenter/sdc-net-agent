@@ -268,6 +268,15 @@ function gatherDiskUsage(vms, callback) {
                 if (vm.brand === 'kvm') {
                     // #1,2
                     Zone.get(uuid, function (error, zone) {
+                        if (error) {
+                            console.error(
+                                "Error looking up zone " + uuid + " by uuid"
+                                + error.message + "\n"
+                                + error.stack);
+                            fecb();
+                            return;
+                        }
+
                         var devices = zone.devices;
                         var device;
 
