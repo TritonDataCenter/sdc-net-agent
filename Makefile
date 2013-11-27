@@ -37,7 +37,7 @@ include ./tools/mk/Makefile.smf.defs
 
 NAME		:= heartbeater
 RELEASE_TARBALL := $(NAME)-$(STAMP).tgz
-TMPDIR          := /tmp/$(STAMP)
+RELSTAGEDIR          := /tmp/$(STAMP)
 NODEUNIT	= $(TOP)/node_modules/.bin/nodeunit
 
 #
@@ -59,7 +59,7 @@ test: $(TAP)
 .PHONY: release
 release: all deps docs $(SMF_MANIFESTS)
 	@echo "Building $(RELEASE_TARBALL)"
-	@mkdir -p $(TMPDIR)/$(NAME)
+	@mkdir -p $(RELSTAGEDIR)/$(NAME)
 	cd $(TOP) && $(NPM) install
 	(git symbolic-ref HEAD | awk -F/ '{print $$3}' && git describe) > $(TOP)/describe
 	cp -r \
@@ -71,9 +71,9 @@ release: all deps docs $(SMF_MANIFESTS)
     $(TOP)/package.json \
     $(TOP)/smf \
     $(TOP)/npm \
-    $(TMPDIR)/$(NAME)
-	(cd $(TMPDIR) && $(TAR) -zcf $(TOP)/$(RELEASE_TARBALL) *)
-	@rm -rf $(TMPDIR)
+    $(RELSTAGEDIR)/$(NAME)
+	(cd $(RELSTAGEDIR) && $(TAR) -zcf $(TOP)/$(RELEASE_TARBALL) *)
+	@rm -rf $(RELSTAGEDIR)
 
 .PHONY: publish
 publish: release
