@@ -577,7 +577,7 @@ function updateSample() {
             gatherDiskUsage(vms, function (err, diskinfo) {
                 if (!err && diskinfo) {
                     newSample.diskinfo = diskinfo;
-                    process.stdout.write('M');
+                    process.stdout.write('D');
                     return cb();
                 } else {
                     console.log('Warning: unable to get disk info:'
