@@ -4,8 +4,8 @@
     "version": "2.1.0",
     "author": "Joyent (joyent.com)",
     "dependencies": {
-        "amqp-plus": "git://github.com/orlandov/node-amqp-plus.git#a67f9547c116bf991b974ce5b9cd090c8b222fdb",
-        "amqp": "git://github.com/postwait/node-amqp.git#7becb031a3517a22490addc46654e807bce5f37e",
+        "amqp": "git://github.com/postwait/node-amqp.git#ae3a1435ac40379cb6f395085f3dc4444b649143",
+        "amqp-plus": "git://github.com/orlandov/node-amqp-plus.git#02ddfbd6f66b7685164cd5e1a4d17a5c2704c01e",
         "async": "0.1.18",
         "nodeunit": "0.7.4",
         "sprintf": "0.1.1",
