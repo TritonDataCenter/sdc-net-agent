@@ -26,11 +26,14 @@ var boot_time;
 // Global VM state
 var exchange;
 var routingKey;
+var zeRoutingKey;
 
 // This specifies whether the cache is dirty.  This could be because a zone
 // has changed state, or we've hit max_interval.  Either way, we'll reload the
-// list.
+// list. readySample let us track if a new sample was just updated so we know if
+// we need to broadcast a new one to the secondary 'zone-event' routing key
 var isDirty = true;
+var readySample = true;
 
 // The current sample is stored here and we lock the samplerLock while we're
 // updating so that we don't do two lookups at the same time.
@@ -81,8 +84,11 @@ function onReady() {
 
     function setUUID(uuid, systype) {
         setupPingQueue(uuid);
+        setupHeartbeatRequestQueue(uuid);
         routingKey = 'heartbeat.' + uuid;
-        console.log('Will publish messages to "' + routingKey + '"');
+        zeRoutingKey = 'zone-event.' + uuid;
+        console.log('Will publish messages to "' + routingKey + '" and to' +
+            '"' + zeRoutingKey + '"');
 
         exchange = connection.exchange('amq.topic', {type: 'topic'});
 
@@ -174,6 +180,23 @@ function setupPingQueue(uuid) {
             exchange.publish(rk, newmsg);
 
             pq.shift();
+        });
+    });
+}
+
+// Listen for messages from clients requesting a heartbeat rightaway instead of
+// them waiting for max_interval
+function setupHeartbeatRequestQueue(uuid) {
+    var resource = 'heartbeat';
+    var queueName = resource + '.heartbeatctl.' + uuid;
+    var hbq = connection.queue(queueName);
+
+    hbq.addListener('open', function (messageCount, consumerCount) {
+        hbq.bind('heartbeat-req');
+
+        hbq.subscribeJSON(function (msg) {
+            console.log('Received heartbeat request message');
+            readySample = true;
         });
     });
 }
@@ -596,6 +619,7 @@ function updateSample() {
                 console.log('ERROR: ' + err.message);
             } else {
                 sample = newSample;
+                readySample = true;
             }
             samplerLock = false;
         });
@@ -652,6 +676,10 @@ function sendSample() {
             console.log('Sending sample: ' + JSON.stringify(sample));
         }
         exchange.publish(routingKey, sample);
+        if (readySample) {
+            exchange.publish(zeRoutingKey, sample);
+            readySample = false;
+        }
         process.stdout.write('.');
     } else {
         if (debug) {
