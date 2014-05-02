@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
-<service_bundle type="manifest" name="heartbeater">
-  <service name="smartdc/agent/heartbeater" type="service" version="@@VERSION@@">
+<service_bundle type="manifest" name="vm-agent">
+  <service name="smartdc/agent/vm-agent" type="service" version="@@VERSION@@">
 
     <create_default_instance enabled="true"/>
     <single_instance/>
@@ -17,7 +17,7 @@
     <exec_method
       type="method"
       name="start"
-      exec="/usr/bin/ctrun -l child -o noorphan /usr/node/bin/node --abort_on_uncaught_exception @@PREFIX@@/bin/heartbeater &amp;"
+      exec="/usr/bin/ctrun -l child -o noorphan /usr/node/bin/node --abort_on_uncaught_exception @@PREFIX@@/bin/vm-agent &amp;"
       timeout_seconds="60">
     <method_context>
       <method_credential user="root" group="staff"/>

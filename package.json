@@ -1,16 +1,12 @@
 {
-    "name": "heartbeater",
-    "description": "SmartDC Node Heartbeat Agent",
-    "version": "2.1.0",
-    "author": "Joyent (joyent.com)",
+    "name": "vm-agent",
+    "description": "SmartDC Node VM Agent",
+    "version": "1.0",
+    "author": "Andres Rodrigue (andres@joyent.com)",
     "dependencies": {
-        "amqp": "git://github.com/postwait/node-amqp.git#d0cef347dfe7d5a7126d0bd2b81766c7a0be3ec6",
-        "amqp-plus": "git://github.com/orlandov/node-amqp-plus.git#02ddfbd6f66b7685164cd5e1a4d17a5c2704c01e",
         "async": "0.1.18",
         "nodeunit": "0.7.4",
-        "sprintf": "0.1.1",
-        "tracker": "git+ssh://git@git.joyent.com:node-tracker.git#3a139906c9eb8d8684ac54cf54cd010315856042",
-        "zfs": "git+ssh://git@git.joyent.com:node_zfs.git#f1d2d70b9957eeedc7a26db2d11099184ad0498d"
+        "sprintf": "0.1.1"
 
     },
     "scripts": {
@@ -18,7 +14,6 @@
         "postuninstall": "npm/postuninstall.sh"
     },
     "bin": {
-        "heartbeater": "./bin/heartbeater.js",
-        "heartbeater-client": "./bin/heartbeater-client.js"
+        "vm-agent": "./bin/vm-agent.js"
     }
 }

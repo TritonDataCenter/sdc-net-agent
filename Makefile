@@ -23,7 +23,7 @@ JSL_CONF_NODE	 = tools/jsl.node.conf
 JSL_FILES_NODE   = $(JS_FILES)
 JSSTYLE_FILES	 = $(JS_FILES)
 JSSTYLE_FLAGS    = -o indent=4,doxygen,unparenthesized-return=0
-SMF_MANIFESTS_IN = smf/manifests/heartbeater.xml.in
+SMF_MANIFESTS_IN = smf/manifests/vm-agent.xml.in
 
 # Should be the same version as the platform's /usr/node/bin/node.
 NODE_PREBUILT_VERSION=v0.8.20
@@ -35,7 +35,7 @@ include ./tools/mk/Makefile.node_prebuilt.defs
 include ./tools/mk/Makefile.node_deps.defs
 include ./tools/mk/Makefile.smf.defs
 
-NAME		:= heartbeater
+NAME		:= vm-agent
 RELEASE_TARBALL := $(NAME)-$(STAMP).tgz
 RELSTAGEDIR          := /tmp/$(STAMP)
 NODEUNIT	= $(TOP)/node_modules/.bin/nodeunit

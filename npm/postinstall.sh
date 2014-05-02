@@ -16,5 +16,5 @@ subfile () {
       $IN > $OUT
 }
 
-subfile "$DIR/../smf/manifests/heartbeater.xml.in" "$SMF_DIR/heartbeater.xml"
-svccfg import $SMF_DIR/heartbeater.xml
+subfile "$DIR/../smf/manifests/vm-agent.xml.in" "$SMF_DIR/vm-agent.xml"
+svccfg import $SMF_DIR/vm-agent.xml
