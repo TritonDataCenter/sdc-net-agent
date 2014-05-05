@@ -11,6 +11,10 @@ var VM = require('/usr/vm/node_modules/VM');
 
 var debug = !!process.env.DEBUG;
 
+var config = {
+    vmapi: 'vmapi.coal.joyent.us'
+};
+
 // We want to watch when VMs have reached a specifc newstate. At the moment
 // we only care if a VM has been stopped or is running
 var watchEvents = {
@@ -18,59 +22,61 @@ var watchEvents = {
     running: true
 };
 
-var lastFullSample;
-
-// The current sample is stored here and we lock the samplerLock while we're
-// updating so that we don't do two lookups at the same time.
-var sample = null;
-var samplerLock = false;
-
-// this watcher watches whether /etc/zones has changed
-var cfg_watcher = null;
-
-// this is the subprocess that watches for zone changes
-var watcher = null;
-
 if (debug) {
     console.log('debug mode');
 }
-
-var connection;
 
 process.on('uncaughtException', function (e) {
     console.error('uncaught exception:' + e.message);
     console.log(e.stack);
 });
 
-function readConfig(callback) {
-    // execFile('/usr/node/bin/node',
-    //     [ '/opt/smartdc/agents/bin/amqp-config' ],
-    //     function (error, stdout, stderr) {
-    //         if (error) {
-    //             return callback(new Error(stderr.toString()));
-    //         }
-    //         var config = {};
-    //         stdout = stdout.toString().trim().split('\n');
-    //         stdout.forEach(function (line) {
-    //             var kv = line.split('=');
-    //             config[kv[0]] = kv[1];
-    //         });
-    //         return callback(null, config);
-    //     });
+// Run the sysinfo script and return the captured stdout, stderr, and exit
+// status code.
+function loadSysinfo(callback) {
+    execFile('/usr/bin/sysinfo', [], function (exitStatus, stdout, stderr) {
+        if (exitStatus) {
+            return callback(new Error(stderr), exitStatus, stdout, stderr);
+        }
+
+        return callback(
+            undefined, exitStatus,
+            stdout.toString().trim(), stderr.toString().trim());
+    });
 }
 
-function onReady() {
+function VmAgent(options) {
+    this.options = options;
+    this.sample = null;
+    this.lastFullSample = null;
 
-    function setUUID(uuid, systype) {
-        setupStatusInterval(uuid);
-    }
+    // this watcher watches whether /etc/zones has changed
+    this.cfg_watcher = null;
+
+    // this is the subprocess that watches for zone changes
+    this.watcher = null;
+}
+
+VmAgent.prototype.init = function(callback) {
+    var self = this;
+
+    // soon: init restify, etc here
+
+    self.setUUID(callback);
+};
+
+VmAgent.prototype.setUUID = function(callback) {
+    var self = this;
 
     if (debug) {
-        return setUUID('550e8400-e29b-41d4-a716-446655440000');
+        self.serverUUID = '550e8400-e29b-41d4-a716-446655440000';
+        process.nextTick(function () {
+            callback();
+        });
     } else {
-        return loadSysinfo(function (error, exitStatus, stdout, stderr) {
+        loadSysinfo(function (error, exitStatus, stdout, stderr) {
             if (error) {
-                throw (new Error('sysinfo error: ' + stderr.toString()));
+                callback(new Error('sysinfo error: ' + stderr.toString()));
             }
 
             // output of sysinfo is a JSON object
@@ -78,27 +84,20 @@ function onReady() {
 
             // Use the UUID param to uniquely identify this machine on AMQP.
             if (!sysinfo.UUID) {
-                throw new Error('Could not find "UUID" in `sysinfo` output.');
+                callback(new Error('Could not find "UUID" in `sysinfo` ' +
+                    'output.'));
             }
-            setUUID(sysinfo.UUID, sysinfo['System Type']);
+            self.serverUUID = sysinfo.UUID;
+            return callback();
         });
     }
-}
+};
 
-function connect() {
-    // get config
-    onReady();
-    startZoneWatcher();
-    startZoneConfigWatcher();
-    updateSample();
-}
-
-// Connect now!
-connect();
-
-function setupStatusInterval(uuid) {
-    // POST /status
-}
+VmAgent.prototype.start = function() {
+    this.startZoneWatcher();
+    this.startZoneConfigWatcher();
+    this.updateSample();
+};
 
 
 /*
@@ -126,12 +125,14 @@ function setupStatusInterval(uuid) {
  *  }
  */
 
-
+// We lock the samplerLock while we're updating so that we don't do two
+// lookups at the same time.
+var samplerLock = false;
 var updateSampleAttempts = 0;
 var updateSampleAttemptsMax = 5;
 
-
-function updateSample(uuid) {
+VmAgent.prototype.updateSample = function (uuid) {
+    var self = this;
     var newSample = {};
 
     if (samplerLock) {
@@ -242,17 +243,25 @@ function updateSample(uuid) {
             samplerLock = false;
 
             if (err) {
+                // retry-backoff
                 console.log('ERROR: ' + err.message);
-                updateSample(uuid);
+                self.updateSample(uuid);
             } else {
-                sample = newSample;
-                lastFullSample = sample.timestamp;
+                self.sample = newSample;
+                self.lastFullSample = newSample.timestamp;
             }
         });
-}
+};
 
-function startZoneWatcher() {
-    watcher = spawn('/usr/vm/sbin/zoneevent', [], {'customFds': [-1, -1, -1]});
+
+VmAgent.prototype.startZoneWatcher = function () {
+    var self = this;
+    var watcher = this.watcher = spawn(
+        '/usr/vm/sbin/zoneevent',
+        [],
+        {'customFds': [-1, -1, -1]}
+    );
+
     console.log('INFO: zoneevent running with pid ' + watcher.pid);
     watcher.stdout.on('data', function (data) {
         process.stdout.write('e');
@@ -266,31 +275,37 @@ function startZoneWatcher() {
             // Only updateSample when it is an event we're watching
             if (watchEvents[event.newstate]) {
                 process.stdout.write('C');
-                updateSample(event.zonename);
+                self.updateSample(event.zonename);
             }
         });
     });
+
     watcher.stdin.end();
 
     watcher.on('exit', function (code) {
         console.log('WARN: zoneevent watcher exited.');
         watcher = null;
     });
-}
+};
 
-function startZoneConfigWatcher() {
-    checkZoneConfigChanges();
-    cfg_watcher = fs.watch('/etc/zones', function (evt, file) {
+
+VmAgent.prototype.startZoneConfigWatcher = function () {
+    var self = this;
+
+    this.cfg_watcher = fs.watch('/etc/zones', function (evt, file) {
         // When we get here something changed in /etc/zones and if that happens
         // it means that something has changed about one of the zones and in
         // turn it means that we need to recheck.
         process.stdout.write('c');
-        checkZoneConfigChanges();
+        self.checkZoneConfigChanges();
     });
     console.log('INFO: start fs.watch() for /etc/zones');
-}
+};
 
-function checkZoneConfigChanges() {
+
+VmAgent.prototype.checkZoneConfigChanges = function () {
+    var self  = this;
+
     /*JSSTYLED*/
     var XML_FILE_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.xml$/;
     var changed = [];
@@ -315,7 +330,7 @@ function checkZoneConfigChanges() {
                 }
 
                 var mtime = stats.mtime.getTime() / 1000;
-                if (lastFullSample < mtime) {
+                if (self.lastFullSample < mtime) {
                     changed.push(matches[1]);
                 }
                 return next();
@@ -331,39 +346,35 @@ function checkZoneConfigChanges() {
             // either a single VM or all VMs (when 2 ore more change)
             if (changed.length > 0) {
                 if (changed.length === 1) {
-                    updateSample(changed[0]);
+                    self.updateSample(changed[0]);
                 } else {
-                    updateSample();
+                    self.updateSample();
                 }
             }
         });
     });
-}
+};
 
 
-function sendSample() {
-    if (sample) {
-        if (debug) {
-            console.log('Sending sample: ' + JSON.stringify(sample));
-        }
-        process.stdout.write('.');
-    } else {
-        if (debug) {
-            console.log('NOT Sending NULL sample');
-        }
+var vmagent = new VmAgent(config);
+vmagent.init(function (err) {
+    if (err) {
+        console.error('Error initializing vmagent: ' + err.toString());
+        process.exit(1);
     }
-}
+    vmagent.start();
+});
 
-// Run the sysinfo script and return the captured stdout, stderr, and exit
-// status code.
-function loadSysinfo(callback) {
-    execFile('/usr/bin/sysinfo', [], function (exitStatus, stdout, stderr) {
-        if (exitStatus) {
-            return callback(new Error(stderr), exitStatus, stdout, stderr);
-        }
+// function sendSample() {
+//     if (sample) {
+//         if (debug) {
+//             console.log('Sending sample: ' + JSON.stringify(sample));
+//         }
+//         process.stdout.write('.');
+//     } else {
+//         if (debug) {
+//             console.log('NOT Sending NULL sample');
+//         }
+//     }
+// }
 
-        return callback(
-            undefined, exitStatus,
-            stdout.toString().trim(), stderr.toString().trim());
-    });
-}
