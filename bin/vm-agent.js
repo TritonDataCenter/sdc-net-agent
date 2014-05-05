@@ -9,28 +9,21 @@ var execFile = cp.execFile;
 var spawn = cp.spawn;
 var VM = require('/usr/vm/node_modules/VM');
 
-var creds;
-
 var debug = !!process.env.DEBUG;
-var max_interval = 60000;  // milliseconds frequency for doing full reload
-var ping_interval = 5000;  // milliseconds frequency of sending msgs
 
-// This specifies whether the cache is dirty.  This could be because a zone
-// has changed state, or we've hit max_interval.  Either way, we'll reload the
-// list. readySample let us track if a new sample was just updated so we know if
-// we need to broadcast a new one to the secondary 'zone-event' routing key
-var isDirty = true;
-var readySample = true;
+// We want to watch when VMs have reached a specifc newstate. At the moment
+// we only care if a VM has been stopped or is running
+var watchEvents = {
+    uninitialized: true,
+    running: true
+};
+
+var lastFullSample;
 
 // The current sample is stored here and we lock the samplerLock while we're
 // updating so that we don't do two lookups at the same time.
 var sample = null;
 var samplerLock = false;
-
-// pingInterval sends a message
-// maxInterval ensures the msg is marked dirty every max_interval ms
-var pingInterval;
-var maxInterval;
 
 // this watcher watches whether /etc/zones has changed
 var cfg_watcher = null;
@@ -70,11 +63,6 @@ function onReady() {
 
     function setUUID(uuid, systype) {
         setupStatusInterval(uuid);
-
-        // every max_interval we force an update but we send the state to the
-        // best of our knowledge every ping_interval ms.
-        maxInterval = setInterval(markDirty, max_interval);
-        pingInterval = setInterval(sendSample, ping_interval);
     }
 
     if (debug) {
@@ -97,15 +85,12 @@ function onReady() {
     }
 }
 
-function onClose() {
-    console.log('Connection closed');
-    clearInterval(maxInterval);
-    clearInterval(pingInterval);
-}
-
 function connect() {
     // get config
     onReady();
+    startZoneWatcher();
+    startZoneConfigWatcher();
+    updateSample();
 }
 
 // Connect now!
@@ -141,15 +126,12 @@ function setupStatusInterval(uuid) {
  *  }
  */
 
-function markDirty() {
-    isDirty = true;
-}
 
 var updateSampleAttempts = 0;
 var updateSampleAttemptsMax = 5;
 
 
-function updateSample() {
+function updateSample(uuid) {
     var newSample = {};
 
     if (samplerLock) {
@@ -168,35 +150,24 @@ function updateSample() {
     }
 
     updateSampleAttempts = 0;
-
     samplerLock = true;
 
-    // set this now in case another update comes in while we're running.
-    isDirty = false;
     var vms;
 
     // newline and timestamp when we *start* an update
     process.stdout.write('\n[' + (new Date()).toISOString() + '] ');
 
     async.series([
-        function (cb) { // zone info
-            var lookup_fields = [
-                'brand',
-                'cpu_cap',
-                'do_not_inventory',
-                'last_modified',
-                'max_physical_memory',
-                'owner_uuid',
-                'quota',
-                'state',
-                'uuid',
-                'zone_state',
-                'zoneid',
-                'zonename',
-                'zonepath'
-            ];
+        function (cb) {
+            var searchOpts = {};
+            if (uuid) {
+                searchOpts.uuid = uuid;
+                process.stdout.write('z');
+            } else {
+                process.stdout.write('Z');
+            }
 
-            VM.lookup({}, {fields: lookup_fields}, function (err, vmobjs) {
+            VM.lookup(searchOpts, { full: true }, function (err, vmobjs) {
                 var vmobj;
                 var hbVm;
                 var running = 0;
@@ -204,11 +175,9 @@ function updateSample() {
                 var notRunning = 0;
                 var nonInventory = 0;
 
-
                 if (err) {
                     console.log(
                         'ERROR: unable update VM list: ' + err.message);
-                    markDirty();
                     return cb(new Error('unable to update VM list.'));
                 } else {
                     vms = {};
@@ -256,7 +225,7 @@ function updateSample() {
                         }
                     }
 
-                    process.stdout.write('Z(' + running + ',' + notRunning);
+                    process.stdout.write('(' + running + ',' + notRunning);
                     if (nonInventory > 0) {
                         process.stdout.write(',' + nonInventory);
                     }
@@ -270,13 +239,15 @@ function updateSample() {
             cb();
         }
         ], function (err) {
+            samplerLock = false;
+
             if (err) {
                 console.log('ERROR: ' + err.message);
+                updateSample(uuid);
             } else {
                 sample = newSample;
-                readySample = true;
+                lastFullSample = sample.timestamp;
             }
-            samplerLock = false;
         });
 }
 
@@ -284,12 +255,20 @@ function startZoneWatcher() {
     watcher = spawn('/usr/vm/sbin/zoneevent', [], {'customFds': [-1, -1, -1]});
     console.log('INFO: zoneevent running with pid ' + watcher.pid);
     watcher.stdout.on('data', function (data) {
-        // If we cared about the data here, we'd parse it (JSON) but we just
-        // care that *something* changed, not what it was so we always just
-        // mark our sample dirty when we see any changes.  It's normal to
-        // see multiple updates ('C's) for one zone action.
-        process.stdout.write('C');
-        markDirty();
+        process.stdout.write('e');
+
+        // There can be more than one event in a single data event
+        var events = data.toString().split('\n');
+        events.forEach(function (event) {
+            if (event === '') return;
+
+            event = JSON.parse(event);
+            // Only updateSample when it is an event we're watching
+            if (watchEvents[event.newstate]) {
+                process.stdout.write('C');
+                updateSample(event.zonename);
+            }
+        });
     });
     watcher.stdin.end();
 
@@ -300,38 +279,72 @@ function startZoneWatcher() {
 }
 
 function startZoneConfigWatcher() {
+    checkZoneConfigChanges();
     cfg_watcher = fs.watch('/etc/zones', function (evt, file) {
         // When we get here something changed in /etc/zones and if that happens
         // it means that something has changed about one of the zones and in
         // turn it means that we need to recheck.
         process.stdout.write('c');
-        markDirty();
+        checkZoneConfigChanges();
     });
     console.log('INFO: start fs.watch() for /etc/zones');
 }
 
+function checkZoneConfigChanges() {
+    /*JSSTYLED*/
+    var XML_FILE_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.xml$/;
+    var changed = [];
+
+    fs.readdir('/etc/zones', function (err, files) {
+        if (err) {
+            console.error('Could not read /etc/zones: ' + err.toString());
+            return;
+        }
+
+        async.forEachSeries(files, function (file, next) {
+            var matches = XML_FILE_RE.exec(file);
+            if (matches === null) {
+                return next();
+            }
+
+            var p = path.join('/etc/zones', file);
+
+            fs.stat(p, function (statErr, stats) {
+                if (statErr) {
+                    return next(statErr);
+                }
+
+                var mtime = stats.mtime.getTime() / 1000;
+                if (lastFullSample < mtime) {
+                    changed.push(matches[1]);
+                }
+                return next();
+            });
+        }, function (asyncErr) {
+            if (asyncErr) {
+                console.error('Could not read file stats: ' +
+                    asyncErr.toString());
+                return;
+            }
+
+            // If one ore more XMLs have changed we want to updateSample for
+            // either a single VM or all VMs (when 2 ore more change)
+            if (changed.length > 0) {
+                if (changed.length === 1) {
+                    updateSample(changed[0]);
+                } else {
+                    updateSample();
+                }
+            }
+        });
+    });
+}
+
+
 function sendSample() {
-    if (!watcher) {
-        // watcher is either not running or exited, try to start it.
-        startZoneWatcher();
-    }
-
-    if (!cfg_watcher) {
-        // start the /etc/zones watcher if it's not watching.
-        startZoneConfigWatcher();
-    }
-
-    if (isDirty) {
-        // start an update for the next cycle
-        updateSample();
-    }
-
     if (sample) {
         if (debug) {
             console.log('Sending sample: ' + JSON.stringify(sample));
-        }
-        if (readySample) {
-            readySample = false;
         }
         process.stdout.write('.');
     } else {
