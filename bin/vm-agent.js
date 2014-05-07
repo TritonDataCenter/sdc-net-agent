@@ -2,6 +2,10 @@ var fs = require('fs');
 var path = require('path');
 var async = require('async');
 var sprintf = require('sprintf').sprintf;
+var restify = require('restify');
+var backoff = require('backoff');
+// var assert = require('assert');
+var bunyan = require('bunyan');
 
 var cp = require('child_process');
 var exec = cp.exec;
@@ -11,8 +15,11 @@ var VM = require('/usr/vm/node_modules/VM');
 
 var debug = !!process.env.DEBUG;
 
+var logger = bunyan.createLogger({ name: 'vm-agent', level: 'debug' });
+
 var config = {
-    vmapi: 'vmapi.coal.joyent.us'
+    vmapi: 'vmapi.coal.joyent.us',
+    log: logger
 };
 
 // We want to watch when VMs have reached a specifc newstate. At the moment
@@ -47,6 +54,8 @@ function loadSysinfo(callback) {
 
 function VmAgent(options) {
     this.options = options;
+    this.updater = options.updateAgent;
+    this.log = options.log;
     this.sample = null;
     this.lastFullSample = null;
 
@@ -102,27 +111,32 @@ VmAgent.prototype.start = function() {
 
 /*
  *
- *  sample format:
- *  {
- *    'zoneStatus': [
- *      [0, 'global', 'running', '/', '', 'liveimg', 'shared', '0'],
- *      [2, '91f8fb10-2c22-441e-9a98-84244b44e5e9', 'running',
- *      '/zones/91f8fb10-2c22-441e-9a98-84244b44e5e9',
- *        '91f8fb10-2c22-441e-9a98-84244b44e5e9', 'joyent', 'excl', '1'],
- *      [27, '020a127a-d79d-41eb-aa12-ffd30da81887', 'running',
- *      '/zones/020a127a-d79d-41eb-aa12-ffd30da81887',
- *        '020a127a-d79d-41eb-aa12-ffd30da81887', 'kvm', 'excl', '14']
- *    ],
- *    'zpoolStatus': [
- *      ['zones', '1370.25G', '41.35G', 'ONLINE']
- *    ],
- *    'timestamp': 1328063128.01,
- *    'meminfo': {
- *      'availrmem_bytes': 40618254336,
- *      'arcsize_bytes': 5141061712,
- *      'total_bytes': 51520827392
- *    }
- *  }
+ *  Sample format that gets loaded from vmadm.lookup:
+ *
+ *    {
+ *    '70ac24a6-962a-4711-92f6-6dc6a53ea59e':
+ *    { uuid: '70ac24a6-962a-4711-92f6-6dc6a53ea59e',
+ *       owner_uuid: '930896af-bf8c-48d4-885c-6573a94b1853',
+ *       quota: 25,
+ *       max_physical_memory: 128,
+ *       zone_state: 'running',
+ *       state: 'running',
+ *       brand: 'joyent-minimal',
+ *       cpu_cap: 100,
+ *       last_modified: '2014-04-29T23:30:17.000Z' },
+ *    '9181f298-a867-49c6-9f34-d57584e7047e':
+ *     { uuid: '9181f298-a867-49c6-9f34-d57584e7047e',
+ *       owner_uuid: '930896af-bf8c-48d4-885c-6573a94b1853',
+ *       quota: 25,
+ *       max_physical_memory: 1024,
+ *       zone_state: 'running',
+ *       state: 'running',
+ *       brand: 'joyent-minimal',
+ *       cpu_cap: 300,
+ *       last_modified: '2014-04-29T23:36:33.000Z' } },
+ *       ...
+ *       ...
+ *   }
  */
 
 // We lock the samplerLock while we're updating so that we don't do two
@@ -133,18 +147,19 @@ var updateSampleAttemptsMax = 5;
 
 VmAgent.prototype.updateSample = function (uuid) {
     var self = this;
+    var log = this.log;
     var newSample = {};
 
     if (samplerLock) {
         updateSampleAttempts++;
 
         if (updateSampleAttempts === updateSampleAttemptsMax) {
-            console.error(
+            log.error(
                 'ERROR: Something bad happened: samplerLock was held for ' +
                 updateSampleAttemptsMax + ' consecutive attempts. Exiting.');
             process.exit(1);
         }
-        console.error(
+        log.error(
             'ERROR: samplerLock is still held, skipping update. Attempt #' +
             updateSampleAttempts);
         return;
@@ -153,108 +168,65 @@ VmAgent.prototype.updateSample = function (uuid) {
     updateSampleAttempts = 0;
     samplerLock = true;
 
-    var vms;
+    var searchOpts = {};
+    var query;
+    if (uuid) {
+        searchOpts.uuid = uuid;
+        query = 'uuid=' + uuid;
+    } else {
+        query = 'uuid=*';
+    }
 
-    // newline and timestamp when we *start* an update
-    process.stdout.write('\n[' + (new Date()).toISOString() + '] ');
+    log.debug('Starting updateSample ' + query);
 
-    async.series([
-        function (cb) {
-            var searchOpts = {};
-            if (uuid) {
-                searchOpts.uuid = uuid;
-                process.stdout.write('z');
-            } else {
-                process.stdout.write('Z');
-            }
+    VM.lookup(searchOpts, { full: true }, function (err, vmobjs) {
+        var vmobj;
+        var hbVm;
+        var running = 0;
+        var newStatus;
+        var notRunning = 0;
+        var nonInventory = 0;
 
-            VM.lookup(searchOpts, { full: true }, function (err, vmobjs) {
-                var vmobj;
-                var hbVm;
-                var running = 0;
-                var newStatus;
-                var notRunning = 0;
-                var nonInventory = 0;
+        // Lock only while .lookup is running
+        samplerLock = false;
 
-                if (err) {
-                    console.log(
-                        'ERROR: unable update VM list: ' + err.message);
-                    return cb(new Error('unable to update VM list.'));
+        if (err) {
+            // retry-backoff
+            log.error(err, 'ERROR: unable update VM list');
+            return self.updateSample(uuid);
+
+        } else {
+
+            for (vmobj in vmobjs) {
+                vmobj = vmobjs[vmobj];
+                if (!vmobj.do_not_inventory) {
+                    newSample[vmobj.uuid] = vmobj;
+                    if (vmobj.zone_state === 'running') {
+                        running++;
+                    } else {
+                        notRunning++;
+                    }
                 } else {
-                    vms = {};
-                    newSample.vms = {};
-
-                    for (vmobj in vmobjs) {
-                        vmobj = vmobjs[vmobj];
-                        vms[vmobj.uuid] = vmobj;
-                        if (!vmobj.do_not_inventory) {
-                            hbVm = {
-                                uuid: vmobj.uuid,
-                                owner_uuid: vmobj.owner_uuid,
-                                quota: vmobj.quota,
-                                max_physical_memory: vmobj.max_physical_memory,
-                                zone_state: vmobj.zone_state,
-                                state: vmobj.state,
-                                brand: vmobj.brand,
-                                cpu_cap: vmobj.cpu_cap
-                            };
-                            newStatus = [
-                                vmobj.zoneid ? vmobj.zoneid : '-',
-                                vmobj.zonename,
-                                vmobj.zone_state,
-                                vmobj.zonepath,
-                                vmobj.uuid,
-                                vmobj.brand,
-                                'excl',
-                                vmobj.zoneid ? vmobj.zoneid : '-'
-                            ];
-                            if (vmobj.hasOwnProperty('last_modified')) {
-                                // this is only conditional until all platforms
-                                // we might run this heartbeater on support the
-                                // last_modified property.
-                                hbVm.last_modified = vmobj.last_modified;
-                                newStatus.push(vmobj.last_modified);
-                            }
-                            newSample.vms[vmobj.uuid] = hbVm;
-                            if (vmobj.zone_state === 'running') {
-                                running++;
-                            } else {
-                                notRunning++;
-                            }
-                        } else {
-                            nonInventory++;
-                        }
-                    }
-
-                    process.stdout.write('(' + running + ',' + notRunning);
-                    if (nonInventory > 0) {
-                        process.stdout.write(',' + nonInventory);
-                    }
-                    process.stdout.write(')');
-                    return cb();
+                    nonInventory++;
                 }
-            });
-        },
-        function (cb) { // timestamp
-            newSample.timestamp = (new Date()).getTime() / 1000;
-            cb();
-        }
-        ], function (err) {
-            samplerLock = false;
-
-            if (err) {
-                // retry-backoff
-                console.log('ERROR: ' + err.message);
-                self.updateSample(uuid);
-            } else {
-                self.sample = newSample;
-                self.lastFullSample = newSample.timestamp;
             }
-        });
+
+            var lookupResults = {
+                running: running,
+                notRunning: notRunning,
+                nonInventory: nonInventory
+            };
+            log.trace(lookupResults, 'Lookup query results');
+
+            self.sample = newSample;
+            self.lastFullSample = (new Date()).getTime() / 1000;
+        }
+    });
 };
 
 
 VmAgent.prototype.startZoneWatcher = function () {
+    var log = this.log;
     var self = this;
     var watcher = this.watcher = spawn(
         '/usr/vm/sbin/zoneevent',
@@ -262,9 +234,9 @@ VmAgent.prototype.startZoneWatcher = function () {
         {'customFds': [-1, -1, -1]}
     );
 
-    console.log('INFO: zoneevent running with pid ' + watcher.pid);
+    log.info('zoneevent running with pid ' + watcher.pid);
     watcher.stdout.on('data', function (data) {
-        process.stdout.write('e');
+        log.trace('zone event: ', data.toString());
 
         // There can be more than one event in a single data event
         var events = data.toString().split('\n');
@@ -274,7 +246,8 @@ VmAgent.prototype.startZoneWatcher = function () {
             event = JSON.parse(event);
             // Only updateSample when it is an event we're watching
             if (watchEvents[event.newstate]) {
-                process.stdout.write('C');
+                log.debug('zone event for %s newstate: %s',
+                    event.zonename, event.newstate);
                 self.updateSample(event.zonename);
             }
         });
@@ -283,27 +256,30 @@ VmAgent.prototype.startZoneWatcher = function () {
     watcher.stdin.end();
 
     watcher.on('exit', function (code) {
-        console.log('WARN: zoneevent watcher exited.');
+        log.warn('zoneevent watcher exited.');
         watcher = null;
     });
 };
 
 
 VmAgent.prototype.startZoneConfigWatcher = function () {
+    var log = this.log;
     var self = this;
 
     this.cfg_watcher = fs.watch('/etc/zones', function (evt, file) {
         // When we get here something changed in /etc/zones and if that happens
         // it means that something has changed about one of the zones and in
         // turn it means that we need to recheck.
-        process.stdout.write('c');
+        log.debug('fs.watch event on /etc/zones');
         self.checkZoneConfigChanges();
     });
-    console.log('INFO: start fs.watch() for /etc/zones');
+
+    log.info('started fs.watch() for /etc/zones');
 };
 
 
 VmAgent.prototype.checkZoneConfigChanges = function () {
+    var log = this.log;
     var self  = this;
 
     /*JSSTYLED*/
@@ -312,7 +288,7 @@ VmAgent.prototype.checkZoneConfigChanges = function () {
 
     fs.readdir('/etc/zones', function (err, files) {
         if (err) {
-            console.error('Could not read /etc/zones: ' + err.toString());
+            log.error(err, 'Could not read /etc/zones');
             return;
         }
 
@@ -335,10 +311,11 @@ VmAgent.prototype.checkZoneConfigChanges = function () {
                 }
                 return next();
             });
+
         }, function (asyncErr) {
+
             if (asyncErr) {
-                console.error('Could not read file stats: ' +
-                    asyncErr.toString());
+                log.error(asyncErr, 'Could not read file stats');
                 return;
             }
 
@@ -356,25 +333,186 @@ VmAgent.prototype.checkZoneConfigChanges = function () {
 };
 
 
+
+
+// UpdateAgent
+
+
+function UpdateAgent(options) {
+    this.options = options;
+    this.log = options.log;
+
+    this.concurrency = options.concurrency || 50;
+    this.retry = options.retry || { initialDelay: 2000, maxDelay: 64000};
+    this.retryDelay = 1000;
+
+    // When items are pushed to the queue, they are stored here so clients
+    // can update the payloads of the objects while UpdateAgent is doing
+    // retry-backoff cycles for them. Example scenario: corrupt VM data and
+    // VMAPI is refusing to update, then VM gets fixed and retry works
+    this.stash = {};
+
+    this.client = restify.createJsonClient({ url: options.url });
+    this.initializeQueue();
+}
+
+
+/*
+ * Initializes the UpdateAgent queue
+ */
+UpdateAgent.prototype.initializeQueue = function () {
+    var self = this;
+    var log = this.log;
+
+    var queue = this.queue = async.queue(function (uuid, callback) {
+        var message = self.stash[uuid];
+
+        // If there was an error sending this update then we need to add it to
+        // the retry/backoff cycle
+        self.sendUpdate(uuid, message, function (err, req, res, obj) {
+            if (err) {
+                setTimeout(self.retryUpdate.bind(self, uuid), self.retryDelay);
+                return callback(err);
+            }
+
+            // Remove from stash
+            delete self.stash[uuid];
+            callback();
+        });
+
+    }, this.concurrency);
+
+    queue.drain = function () {
+        log.trace('UpdateAgent queue has been drained');
+    };
+
+    queue.saturated = function () {
+        log.trace('UpdateAgent queue has been saturated');
+    };
+};
+
+
+/*
+ * Retries an update operation.
+ */
+UpdateAgent.prototype.retryUpdate = function (uuid) {
+    var self = this;
+    var log = this.log;
+    var retryOpts = this.retry;
+
+    function logAttempt(aLog, host) {
+        function _log(number, delay) {
+            var level;
+            if (number === 0) {
+                level = 'info';
+            } else if (number < 5) {
+                level = 'warn';
+            } else {
+                level = 'error';
+            }
+            aLog[level]({
+                ip: host,
+                attempt: number,
+                delay: delay
+            }, 'UpdateAgent retry attempt for VM %s', hb.uuid);
+        }
+
+        return (_log);
+    }
+
+    // Always get the latest value from the stash
+    function update(cb) {
+        self.sendUpdate(uuid, self.stash[uuid], cb);
+    }
+
+    var retry = backoff.call(update, function (err) {
+        retry.removeAllListeners('backoff');
+
+        var attempts = retry.getResults().length;
+
+        if (err) {
+            log.info('Could not send update after %d attempts', attempts);
+            return;
+        }
+
+        log.info('Update successfully sent after %d attempts', attempts);
+    });
+
+    retry.setStrategy(new backoff.ExponentialStrategy({
+        initialDelay: retryOpts.initialDelay,
+        maxDelay: retryOpts.maxDelay
+    }));
+
+    retry.failAfter(retryOpts.retries || Infinity);
+    retry.on('backoff', logAttempt(log));
+
+    retry.start();
+};
+
+
+/*
+ * Sends an update. Clients that use UpdateAgent must conform to the following
+ * object format:
+ *
+ * {
+ *   uuid: <uuid>,
+ *   path: <API endpoint>,
+ *   method: <HTTP method>,
+ *   payload: <payload>
+ * }
+ */
+UpdateAgent.prototype.sendUpdate = function (uuid, message, callback) {
+    if (message.method !== 'post' || message.method !== 'put') {
+        process.nextTick(function () {
+            callback(new Error('Unsupported update method'));
+        });
+    }
+
+    this.client[message.method].call(
+        this.client,
+        message.path,
+        message.payload,
+        callback
+    );
+};
+
+
+/*
+ * Queues an update message to be sent.
+ */
+UpdateAgent.prototype.queueUpdate = function (uuid, message) {
+    var self = this;
+
+    function onUpdateCompleted(err) {
+        self.log.trace('UpdateAgent queue task completed');
+    }
+
+    // Only add to queue when there is no item in the stash. This means that
+    // stash has stuff when queue is being processed or item is in a retry-
+    // backoff cycle
+    var exists = (this.stash[uuid] !== undefined);
+
+    // Update stash before pusing to queue
+    this.stash[uuid] = message;
+
+    if (!exists) {
+        this.queue.push(uuid, onUpdateCompleted);
+    }
+};
+
+
+
+var updateAgent = new UpdateAgent(config);
+config.updater = updateAgent;
+
 var vmagent = new VmAgent(config);
+
 vmagent.init(function (err) {
     if (err) {
-        console.error('Error initializing vmagent: ' + err.toString());
+        logger.error(err, 'Error initializing vmagent');
         process.exit(1);
     }
     vmagent.start();
 });
 
-// function sendSample() {
-//     if (sample) {
-//         if (debug) {
-//             console.log('Sending sample: ' + JSON.stringify(sample));
-//         }
-//         process.stdout.write('.');
-//     } else {
-//         if (debug) {
-//             console.log('NOT Sending NULL sample');
-//         }
-//     }
-// }
 
