@@ -148,7 +148,6 @@ var updateSampleAttemptsMax = 5;
 VmAgent.prototype.updateSample = function (uuid) {
     var self = this;
     var log = this.log;
-    var newSample = {};
 
     if (samplerLock) {
         updateSampleAttempts++;
@@ -168,60 +167,103 @@ VmAgent.prototype.updateSample = function (uuid) {
     updateSampleAttempts = 0;
     samplerLock = true;
 
-    var searchOpts = {};
-    var query;
-    if (uuid) {
-        searchOpts.uuid = uuid;
-        query = 'uuid=' + uuid;
-    } else {
-        query = 'uuid=*';
+    function lookup(cb) {
+        var newSample = {};
+        var searchOpts = {};
+        var query;
+
+        if (uuid) {
+            searchOpts.uuid = uuid;
+            query = 'uuid=' + uuid;
+        } else {
+            query = 'uuid=*';
+        }
+
+        log.debug('Starting updateSample ' + query);
+
+        VM.lookup(searchOpts, { full: true }, function (err, vmobjs) {
+            var vmobj;
+            var hbVm;
+            var running = 0;
+            var newStatus;
+            var notRunning = 0;
+            var nonInventory = 0;
+
+            if (err) {
+                log.error(err, 'ERROR: unable update VM list');
+                return cb(err);
+
+            } else {
+                for (vmobj in vmobjs) {
+                    vmobj = vmobjs[vmobj];
+                    if (!vmobj.do_not_inventory) {
+                        newSample[vmobj.uuid] = vmobj;
+                        if (vmobj.zone_state === 'running') {
+                            running++;
+                        } else {
+                            notRunning++;
+                        }
+                    } else {
+                        nonInventory++;
+                    }
+                }
+
+                var lookupResults = {
+                    running: running,
+                    notRunning: notRunning,
+                    nonInventory: nonInventory
+                };
+                log.trace(lookupResults, 'Lookup query results');
+
+                self.sample = newSample;
+                self.lastFullSample = (new Date()).getTime() / 1000;
+                return cb();
+            }
+        });
     }
 
-    log.debug('Starting updateSample ' + query);
+    function logAttempt(aLog, host) {
+        function _log(number, delay) {
+            var level;
+            if (number === 0) {
+                level = 'info';
+            } else if (number < 5) {
+                level = 'warn';
+            } else {
+                level = 'error';
+            }
+            aLog[level]({
+                ip: host,
+                attempt: number,
+                delay: delay
+            }, 'updateSample retry attempt');
+        }
 
-    VM.lookup(searchOpts, { full: true }, function (err, vmobjs) {
-        var vmobj;
-        var hbVm;
-        var running = 0;
-        var newStatus;
-        var notRunning = 0;
-        var nonInventory = 0;
+        return (_log);
+    }
 
-        // Lock only while .lookup is running
+    var retry = backoff.call(lookup, function (err) {
+        retry.removeAllListeners('backoff');
+
+        // Release lock when retry-backoff is done
         samplerLock = false;
 
+        var attempts = retry.getResults().length;
         if (err) {
-            // retry-backoff
-            log.error(err, 'ERROR: unable update VM list');
-            return self.updateSample(uuid);
-
-        } else {
-
-            for (vmobj in vmobjs) {
-                vmobj = vmobjs[vmobj];
-                if (!vmobj.do_not_inventory) {
-                    newSample[vmobj.uuid] = vmobj;
-                    if (vmobj.zone_state === 'running') {
-                        running++;
-                    } else {
-                        notRunning++;
-                    }
-                } else {
-                    nonInventory++;
-                }
-            }
-
-            var lookupResults = {
-                running: running,
-                notRunning: notRunning,
-                nonInventory: nonInventory
-            };
-            log.trace(lookupResults, 'Lookup query results');
-
-            self.sample = newSample;
-            self.lastFullSample = (new Date()).getTime() / 1000;
+            log.error('Could not updateSample after %d attempts', attempts);
+            process.exit(1);
         }
     });
+
+    var retryOpts = { initialDelay: 200, maxDelay: 2000 };
+    retry.setStrategy(new backoff.ExponentialStrategy({
+        initialDelay: retryOpts.initialDelay,
+        maxDelay: retryOpts.maxDelay
+    }));
+
+    retry.failAfter(5);
+    retry.on('backoff', logAttempt(log));
+    retry.start();
 };
 
 
@@ -414,7 +456,7 @@ UpdateAgent.prototype.retryUpdate = function (uuid) {
                 ip: host,
                 attempt: number,
                 delay: delay
-            }, 'UpdateAgent retry attempt for VM %s', hb.uuid);
+            }, 'UpdateAgent retry attempt for VM %s', uuid);
         }
 
         return (_log);
@@ -431,7 +473,7 @@ UpdateAgent.prototype.retryUpdate = function (uuid) {
         var attempts = retry.getResults().length;
 
         if (err) {
-            log.info('Could not send update after %d attempts', attempts);
+            log.error('Could not send update after %d attempts', attempts);
             return;
         }
 
