@@ -6,6 +6,7 @@ var restify = require('restify');
 var backoff = require('backoff');
 // var assert = require('assert');
 var bunyan = require('bunyan');
+var format = require('util').format;
 
 var cp = require('child_process');
 var exec = cp.exec;
@@ -18,7 +19,7 @@ var debug = !!process.env.DEBUG;
 var logger = bunyan.createLogger({ name: 'vm-agent', level: 'debug' });
 
 var config = {
-    vmapi: 'vmapi.coal.joyent.us',
+    url: 'http://vmapi.coal.joyent.us',
     log: logger
 };
 
@@ -52,9 +53,10 @@ function loadSysinfo(callback) {
     });
 }
 
+
 function VmAgent(options) {
     this.options = options;
-    this.updater = options.updateAgent;
+    this.updateAgent = options.updateAgent;
     this.log = options.log;
     this.sample = null;
     this.lastFullSample = null;
@@ -64,6 +66,7 @@ function VmAgent(options) {
 
     // this is the subprocess that watches for zone changes
     this.watcher = null;
+    this.vms = [];
 }
 
 VmAgent.prototype.init = function(callback) {
@@ -102,10 +105,55 @@ VmAgent.prototype.setUUID = function(callback) {
     }
 };
 
+
 VmAgent.prototype.start = function() {
     this.startZoneWatcher();
     this.startZoneConfigWatcher();
-    this.updateSample();
+    this.sendSample();
+};
+
+var VM_PATH = '/vms/%s';
+
+VmAgent.prototype.sendSample = function(uuid) {
+    var self = this;
+    var log = this.log;
+
+    function queueUpdate(key, path, query, payload) {
+        var message = {
+            method: 'put',
+            path: path,
+            query: query,
+            payload: payload
+        };
+
+        return function() {
+            self.updateAgent.queueUpdate(key, message);
+        };
+    }
+
+    this.updateSample(uuid, function (err) {
+        if (err) {
+            log.error(err, 'updateSample failed, cannot sendSample');
+            return;
+        }
+        if (self.updateAgent) {
+            if (uuid) {
+                Object.keys(self.sample).forEach(queueUpdate(
+                    uuid,
+                    format(VM_PATH, uuid),
+                    {},
+                    self.sample[uuid]
+                ));
+            } else {
+                queueUpdate(
+                    self.serverUUID,
+                    '/vms',
+                    { server_uuid: self.serverUUID },
+                    { vms: self.sample }
+                )();
+            }
+        }
+    });
 };
 
 
@@ -145,9 +193,14 @@ var samplerLock = false;
 var updateSampleAttempts = 0;
 var updateSampleAttemptsMax = 5;
 
-VmAgent.prototype.updateSample = function (uuid) {
+VmAgent.prototype.updateSample = function (uuid, callback) {
     var self = this;
     var log = this.log;
+
+    if (typeof (uuid) === 'function') {
+        callback = uuid;
+        uuid = undefined;
+    }
 
     if (samplerLock) {
         updateSampleAttempts++;
@@ -251,8 +304,9 @@ VmAgent.prototype.updateSample = function (uuid) {
         var attempts = retry.getResults().length;
         if (err) {
             log.error('Could not updateSample after %d attempts', attempts);
-            process.exit(1);
+            return callback(err);
         }
+        return callback();
     });
 
     var retryOpts = { initialDelay: 200, maxDelay: 2000 };
@@ -290,7 +344,7 @@ VmAgent.prototype.startZoneWatcher = function () {
             if (watchEvents[event.newstate]) {
                 log.debug('zone event for %s newstate: %s',
                     event.zonename, event.newstate);
-                self.updateSample(event.zonename);
+                self.sendSample(event.zonename);
             }
         });
     });
@@ -327,6 +381,7 @@ VmAgent.prototype.checkZoneConfigChanges = function () {
     /*JSSTYLED*/
     var XML_FILE_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.xml$/;
     var changed = [];
+    var newVms = [];
 
     fs.readdir('/etc/zones', function (err, files) {
         if (err) {
@@ -340,7 +395,10 @@ VmAgent.prototype.checkZoneConfigChanges = function () {
                 return next();
             }
 
+            var uuid = matches[1];
             var p = path.join('/etc/zones', file);
+
+            newVms.push(uuid);
 
             fs.stat(p, function (statErr, stats) {
                 if (statErr) {
@@ -349,7 +407,7 @@ VmAgent.prototype.checkZoneConfigChanges = function () {
 
                 var mtime = stats.mtime.getTime() / 1000;
                 if (self.lastFullSample < mtime) {
-                    changed.push(matches[1]);
+                    changed.push(uuid);
                 }
                 return next();
             });
@@ -361,13 +419,25 @@ VmAgent.prototype.checkZoneConfigChanges = function () {
                 return;
             }
 
+            // Check if any of the existing VMs is no longer in the server. In
+            // this case we just send the ful sample so VMAPI can check which
+            // VMs have been destroyed
+            var destroyed = false;
+            for (var i = 0; i < self.vms.length; i++) {
+                if (newVms.indexOf(self.vms[i]) === -1) {
+                    destroyed = true;
+                    break;
+                }
+            }
+            self.vms = newVms;
+
             // If one ore more XMLs have changed we want to updateSample for
             // either a single VM or all VMs (when 2 ore more change)
             if (changed.length > 0) {
-                if (changed.length === 1) {
-                    self.updateSample(changed[0]);
+                if (changed.length === 1 && !destroyed) {
+                    self.sendSample(changed[0]);
                 } else {
-                    self.updateSample();
+                    self.sendSample();
                 }
             }
         });
@@ -443,7 +513,7 @@ UpdateAgent.prototype.retryUpdate = function (uuid) {
     var retryOpts = this.retry;
 
     function logAttempt(aLog, host) {
-        function _log(number, delay) {
+        function _log(number, delay, err) {
             var level;
             if (number === 0) {
                 level = 'info';
@@ -452,6 +522,7 @@ UpdateAgent.prototype.retryUpdate = function (uuid) {
             } else {
                 level = 'error';
             }
+            aLog.error(err, 'UpdateAgent retry error');
             aLog[level]({
                 ip: host,
                 attempt: number,
@@ -497,22 +568,23 @@ UpdateAgent.prototype.retryUpdate = function (uuid) {
  * object format:
  *
  * {
- *   uuid: <uuid>,
  *   path: <API endpoint>,
+ *   query: <HTTP query params>,
  *   method: <HTTP method>,
  *   payload: <payload>
  * }
  */
 UpdateAgent.prototype.sendUpdate = function (uuid, message, callback) {
-    if (message.method !== 'post' || message.method !== 'put') {
+    if (message.method !== 'post' && message.method !== 'put') {
         process.nextTick(function () {
             callback(new Error('Unsupported update method'));
         });
     }
 
+    var opts = { path: message.path, query: message.query || {} };
     this.client[message.method].call(
         this.client,
-        message.path,
+        opts,
         message.payload,
         callback
     );
@@ -545,7 +617,7 @@ UpdateAgent.prototype.queueUpdate = function (uuid, message) {
 
 
 var updateAgent = new UpdateAgent(config);
-config.updater = updateAgent;
+config.updateAgent = updateAgent;
 
 var vmagent = new VmAgent(config);
 
