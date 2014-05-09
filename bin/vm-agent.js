@@ -1,7 +1,6 @@
 var fs = require('fs');
 var path = require('path');
 var async = require('async');
-var sprintf = require('sprintf').sprintf;
 var restify = require('restify');
 var backoff = require('backoff');
 // var assert = require('assert');

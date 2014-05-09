@@ -5,10 +5,10 @@
     "author": "Andres Rodriguez (andres@joyent.com)",
     "dependencies": {
         "async": "0.1.18",
+        "backoff": "2.3.0",
         "bunyan": "0.22.3",
         "nodeunit": "0.7.4",
-        "restify": "2.7.0",
-        "sprintf": "0.1.1"
+        "restify": "2.7.0"
 
     },
     "scripts": {
