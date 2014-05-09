@@ -26,8 +26,13 @@ JSSTYLE_FLAGS    = -o indent=4,doxygen,unparenthesized-return=0
 SMF_MANIFESTS_IN = smf/manifests/vm-agent.xml.in
 
 # Should be the same version as the platform's /usr/node/bin/node.
-NODE_PREBUILT_VERSION=v0.8.20
 NODE_PREBUILT_TAG=gz
+NODE_PREBUILT_VERSION=v0.10.26
+ifeq ($(shell uname -s),SunOS)
+    NODE_PREBUILT_TAG=zone
+    # Allow building on a SmartOS image other than sdc-smartos/1.6.3.
+    NODE_PREBUILT_IMAGE=fd2cc906-8938-11e3-beab-4359c665ac99
+endif
 
 # Included definitions
 include ./tools/mk/Makefile.defs
