@@ -190,7 +190,7 @@ VmAgent.prototype.sendSample = function(uuid) {
 // lookups at the same time.
 var samplerLock = false;
 var updateSampleAttempts = 0;
-var updateSampleAttemptsMax = 5;
+// var updateSampleAttemptsMax = 5;
 
 VmAgent.prototype.updateSample = function (uuid, callback) {
     var self = this;
@@ -204,13 +204,13 @@ VmAgent.prototype.updateSample = function (uuid, callback) {
     if (samplerLock) {
         updateSampleAttempts++;
 
-        if (updateSampleAttempts === updateSampleAttemptsMax) {
-            log.error(
-                'ERROR: Something bad happened: samplerLock was held for ' +
-                updateSampleAttemptsMax + ' consecutive attempts. Exiting.');
-            process.exit(1);
-        }
-        log.error(
+        // if (updateSampleAttempts === updateSampleAttemptsMax) {
+        //     log.error(
+        //         'ERROR: Something bad happened: samplerLock was held for ' +
+        //         updateSampleAttemptsMax + ' consecutive attempts. Exiting.');
+        //     process.exit(1);
+        // }
+        log.warn(
             'ERROR: samplerLock is still held, skipping update. Attempt #' +
             updateSampleAttempts);
         return;
