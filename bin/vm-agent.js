@@ -64,20 +64,17 @@ function loadSysinfo(callback) {
 }
 
 
-var updateAgent;
-var VmAgent;
-
 async.waterfall([
     loadConfig,
     loadSysinfo
 ], function (err) {
     if (err) {
-        log.fatal('Failed to initialize vm-agent configuration');
+        logger.fatal('Failed to initialize vm-agent configuration');
         process.exit(1);
     }
 
     if (!sysinfo.UUID) {
-        log.fatal('Could not find "UUID" in `sysinfo` output.');
+        logger.fatal('Could not find "UUID" in `sysinfo` output.');
         process.exit(1);
     }
 
@@ -86,7 +83,7 @@ async.waterfall([
     config.url = (process.env.VMAPI_URL || vmapi_url);
 
     if (!config.url) {
-        log.fatal('config.url is required');
+        logger.fatal('config.url is required');
         process.exit(1);
     }
 
