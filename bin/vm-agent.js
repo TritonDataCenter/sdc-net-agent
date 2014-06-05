@@ -12,8 +12,8 @@ var VM = require('/usr/vm/node_modules/VM');
 var logLevel = (process.env.LOG_LEVEL || 'debug');
 var logger = bunyan.createLogger({ name: 'vm-agent', level: logLevel });
 
-var VmAgent = require('../lib/vm-agent');
-var UpdateAgent = require('../lib/update-agent');
+var VmAgent = require('../lib');
+var UpdateAgent = require('update-agent');
 
 var config = { log: logger };
 var sdcConfig;
