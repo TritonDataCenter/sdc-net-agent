@@ -1,6 +1,6 @@
 {
-    "name": "vm-agent",
-    "description": "SmartDC Node VM Agent",
+    "name": "net-agent",
+    "description": "SmartDC Net Agent",
     "version": "1.0.0",
     "author": "Andres Rodriguez (andres@joyent.com)",
     "dependencies": {
@@ -16,6 +16,6 @@
         "postuninstall": "npm/postuninstall.sh"
     },
     "bin": {
-        "vm-agent": "./bin/vm-agent.js"
+        "net-agent": "./bin/net-agent.js"
     }
 }

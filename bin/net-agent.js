@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  *
- * vm-agent.js
+ * net-agent.js
  */
 
 var bunyan = require('bunyan');
