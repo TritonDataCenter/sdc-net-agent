@@ -9,7 +9,7 @@
         "bunyan": "0.22.3",
         "nodeunit": "0.7.4",
         "restify": "2.7.0",
-        "update-agent": "git+ssh://git@git.joyent.com:update-agent.git#1c862fa"
+        "update-agent": "git+ssh://git@git.joyent.com:update-agent.git#092cdba"
     },
     "scripts": {
         "postinstall":   "npm/postinstall.sh",
