@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Rsync vm-agent
+# Rsync net-agent
 #
 
 #set -o xtrace
@@ -18,7 +18,7 @@ if [[ $(uname -s) != "SunOS" ]]; then
 fi
 
 rsync -av ${TOP}/ \
-    $NODE:/var/tmp/vm-agent/ \
+    $NODE:/var/tmp/net-agent/ \
     $extraOpts \
     --exclude .git/ \
     --exclude /deps/ \
@@ -26,4 +26,4 @@ rsync -av ${TOP}/ \
     --exclude /tools/ \
     --exclude /tmp/
 
-ssh $NODE cp -R /opt/smartdc/agents/lib/node_modules/vm-agent/node_modules/ /var/tmp/vm-agent/
+ssh $NODE cp -R /opt/smartdc/agents/lib/node_modules/vm-agent/node_modules/ /var/tmp/net-agent/

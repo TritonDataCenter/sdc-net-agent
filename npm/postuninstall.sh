@@ -2,9 +2,9 @@
 
 export SMFDIR=$npm_config_smfdir
 
-if svcs vm-agent; then
-svcadm disable -s vm-agent
-svccfg delete vm-agent
+if svcs net-agent; then
+svcadm disable -s net-agent
+svccfg delete net-agent
 fi
 
-rm -f "$SMFDIR/vm-agent.xml"
+rm -f "$SMFDIR/net-agent.xml"

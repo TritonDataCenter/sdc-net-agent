@@ -16,5 +16,5 @@ subfile () {
       $IN > $OUT
 }
 
-subfile "$DIR/../smf/manifests/vm-agent.xml.in" "$SMF_DIR/vm-agent.xml"
-svccfg import $SMF_DIR/vm-agent.xml
+subfile "$DIR/../smf/manifests/net-agent.xml.in" "$SMF_DIR/net-agent.xml"
+svccfg import $SMF_DIR/net-agent.xml

@@ -12,8 +12,7 @@ var VM = require('/usr/vm/node_modules/VM');
 var logLevel = (process.env.LOG_LEVEL || 'debug');
 var logger = bunyan.createLogger({ name: 'vm-agent', level: logLevel });
 
-var VmAgent = require('../lib');
-var UpdateAgent = require('update-agent');
+var NetAgent = require('../lib');
 
 var config = { log: logger };
 var sdcConfig;
@@ -79,17 +78,14 @@ async.waterfall([
     }
 
     config.uuid = sysinfo.UUID;
-    var vmapi_url = 'http://' + sdcConfig.vmapi_domain;
-    config.url = (process.env.VMAPI_URL || vmapi_url);
+    var napi_url = 'http://' + sdcConfig.napi_domain;
+    config.url = (process.env.NAPI_URL || napi_url);
 
     if (!config.url) {
         logger.fatal('config.url is required');
         process.exit(1);
     }
 
-    var updateAgent = new UpdateAgent(config);
-    config.updateAgent = updateAgent;
-
-    var vmagent = new VmAgent(config);
+    var vmagent = new NetAgent(config);
     vmagent.start();
 });
