@@ -77,6 +77,7 @@ release: all deps docs $(SMF_MANIFESTS)
     $(TOP)/smf \
     $(TOP)/npm \
     $(RELSTAGEDIR)/$(NAME)
+    cp -PR $(NODE_INSTALL) $(RELSTAGEDIR)/$(NAME)/node
 	(cd $(RELSTAGEDIR) && $(TAR) -zcf $(TOP)/$(RELEASE_TARBALL) *)
 	@rm -rf $(RELSTAGEDIR)
 
