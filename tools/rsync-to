@@ -26,4 +26,4 @@ rsync -av ${TOP}/ \
     --exclude /tools/ \
     --exclude /tmp/
 
-ssh $NODE cp -R /opt/smartdc/agents/lib/node_modules/vm-agent/node_modules/ /var/tmp/net-agent/
+ssh $NODE cp -R /opt/smartdc/agents/lib/node_modules/net-agent/node_modules/ /var/tmp/net-agent/
