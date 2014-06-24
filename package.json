@@ -1,7 +1,7 @@
 {
     "name": "net-agent",
     "description": "SmartDC Net Agent",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "Andres Rodriguez (andres@joyent.com)",
     "dependencies": {
         "async": "0.1.18",
@@ -9,8 +9,7 @@
         "bunyan": "0.22.3",
         "nodeunit": "0.7.4",
         "restify": "2.7.0",
-        "sdc-clients": "git+ssh://git@git.joyent.com:node-sdc-clients.git#c962959",
-        "update-agent": "git+ssh://git@git.joyent.com:update-agent.git#092cdba"
+        "sdc-clients": "git+ssh://git@git.joyent.com:node-sdc-clients.git#c962959"
     },
     "scripts": {
         "postinstall":   "npm/postinstall.sh",
