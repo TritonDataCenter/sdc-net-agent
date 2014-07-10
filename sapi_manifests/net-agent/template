@@ -1,0 +1,3 @@
+{
+	"napi": { "url": "http://{{{NAPI_SERVICE}}}" }
+}

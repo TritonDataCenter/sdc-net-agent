@@ -74,6 +74,7 @@ release: all deps docs $(SMF_MANIFESTS)
     $(TOP)/Makefile \
     $(TOP)/node_modules \
     $(TOP)/package.json \
+    $(TOP)/sapi_manifests \
     $(TOP)/smf \
     $(TOP)/npm \
     $(RELSTAGEDIR)/$(NAME)
