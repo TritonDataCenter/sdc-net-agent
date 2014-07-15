@@ -17,4 +17,3 @@ subfile () {
 }
 
 subfile "$DIR/../smf/manifests/net-agent.xml.in" "$SMF_DIR/net-agent.xml"
-svccfg import $SMF_DIR/net-agent.xml
