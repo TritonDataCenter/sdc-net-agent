@@ -3,7 +3,7 @@
 <service_bundle type="manifest" name="net-agent">
   <service name="smartdc/agent/net-agent" type="service" version="@@VERSION@@">
 
-    <create_default_instance enabled="false"/>
+    <create_default_instance enabled="true"/>
     <single_instance/>
 
     <dependency name="network" grouping="require_all" restart_on="error" type="service">
