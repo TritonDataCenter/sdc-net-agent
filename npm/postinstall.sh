@@ -7,9 +7,14 @@ export PREFIX=$npm_config_prefix
 export ETC_DIR=$npm_config_etc
 export SMF_DIR=$npm_config_smfdir
 export VERSION=$npm_package_version
+export ENABLED=false
 
 . /lib/sdc/config.sh
 load_sdc_config
+
+if [[ $CONFIG_die_rabbit_die == "true" ]]; then
+    export ENABLED=true
+fi
 
 AGENT=$npm_package_name
 SAPI_URL=http://${CONFIG_sapi_domain}
@@ -26,6 +31,7 @@ function subfile()
   OUT=$2
   sed -e "s#@@PREFIX@@#$PREFIX#g" \
       -e "s/@@VERSION@@/$VERSION/g" \
+      -e "s/@@ENABLED@@/$ENABLED/g" \
       $IN > $OUT
 }
 
