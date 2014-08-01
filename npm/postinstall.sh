@@ -12,12 +12,7 @@ export ENABLED=false
 . /lib/sdc/config.sh
 load_sdc_config
 
-if [[ $CONFIG_die_rabbit_die == "true" ]]; then
-    export ENABLED=true
-fi
-
 AGENT=$npm_package_name
-SAPI_URL=http://${CONFIG_sapi_domain}
 
 function fatal()
 {
@@ -33,6 +28,12 @@ function subfile()
       -e "s/@@VERSION@@/$VERSION/g" \
       -e "s/@@ENABLED@@/$ENABLED/g" \
       $IN > $OUT
+}
+
+function import_smf_manifest()
+{
+    subfile "$DIR/../smf/manifests/$AGENT.xml.in" "$SMF_DIR/$AGENT.xml"
+    svccfg import $SMF_DIR/$AGENT.xml
 }
 
 function instance_exists()
@@ -99,6 +100,22 @@ function adopt_instance()
     echo "Adopted service ${AGENT} to instance ${instance_uuid}"
 }
 
+# If agentsshar is being installed on an old SAPI/CN, we can leave this instance
+# disabled and avoid running any SAPI-dependant configuration. sapi_domain is
+# zero length when a proper upgrade scripts were not executed for this CN
+if [[ -z $CONFIG_sapi_domain ]]; then
+    echo "sapi_domain was not found on node.config, agent will be installed but not configured"
+    import_smf_manifest
+    exit 0
+fi
+
+if [[ $CONFIG_die_rabbit_die == "true" ]]; then
+    export ENABLED=true
+fi
+
+SAPI_URL=http://${CONFIG_sapi_domain}
+IMGAPI_URL=http://${CONFIG_imgapi_domain}
+
 # Check if we're inside a headnode and if there is a SAPI available. This post-
 # install script runs in the following circumstances:
 # 1. (don't call adopt) hn=1, sapi=0: first hn boot, disable agent, exit 0
@@ -113,8 +130,7 @@ if [[ $? == 0 ]]; then
 	have_sapi="true"
 fi
 
-subfile "$DIR/../smf/manifests/$AGENT.xml.in" "$SMF_DIR/$AGENT.xml"
-svccfg import $SMF_DIR/$AGENT.xml
+import_smf_manifest
 
 # case 1) is first time this agent is installed on the headnode. Disable its
 # service until config-agent sets up its config
@@ -123,6 +139,37 @@ if [[ $is_headnode == "true" ]] && [[ $have_sapi == "false" ]]; then
     exit 0
 fi
 
-get_adopt_instance
+# Before adopting instances into SAPI we need to check if SAPI is new enough so
+# it will understand a request for adding an agent instance to it
+
+MIN_VALID_SAPI_VERSION=20140703
+
+# SAPI versions can have the following two forms:
+#
+#   release-20140724-20140724T171248Z-gf4a5bed
+#   master-20140724T174534Z-gccfea7e
+#
+# We need at least a MIN_VALID_SAPI_VERSION image so type=agent suport is there.
+# When the SAPI version doesn't match the expected format we ignore this script
+#
+valid_sapi=$(curl ${IMGAPI_URL}/images/$(curl ${SAPI_URL}/services?name=sapi | json -Ha params.image_uuid) \
+    | json -e \
+    "var splitVersion = this.version.split('-');
+    if (splitVersion[0] === 'master') {
+        this.validSapi = splitVersion[1].substr(0, 8) >= '$MIN_VALID_SAPI_VERSION';
+    } else if (splitVersion[0] === 'release') {
+        this.validSapi = splitVersion[1] >= '$MIN_VALID_SAPI_VERSION';
+    } else {
+        this.validSapi = false;
+    }
+    " | json validSapi)
+
+if [[ ${valid_sapi} == "false" ]]; then
+    echo "Datacenter does not have the minimum SAPI version needed for adding
+        service agents. No need to adopt agent into SAPI"
+    exit 0
+else
+    get_adopt_instance
+fi
 
 exit 0
