@@ -12,10 +12,11 @@
         "sdc-clients": "git+ssh://git@git.joyent.com:node-sdc-clients.git#c962959"
     },
     "scripts": {
-        "postinstall":   "npm/postinstall.sh",
+        "postinstall": "npm/postinstall.sh",
         "postuninstall": "npm/postuninstall.sh"
     },
     "bin": {
         "net-agent": "./bin/net-agent.js"
-    }
+    },
+    "license": "MPL-2.0"
 }
