@@ -9,7 +9,7 @@
         "bunyan": "0.22.3",
         "nodeunit": "0.7.4",
         "restify": "2.7.0",
-        "sdc-clients": "git+ssh://git@git.joyent.com:node-sdc-clients.git#c962959"
+        "sdc-clients": "git+ssh://git@github.com:joyent/node-sdc-clients.git#c962959"
     },
     "scripts": {
         "postinstall": "npm/postinstall.sh",
