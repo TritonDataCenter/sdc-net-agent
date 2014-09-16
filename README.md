@@ -9,22 +9,22 @@
 -->
 
 
-# sdc-net-agent
+# SDC Networking Agent
 
-The SDC Networking agent is a library for keeping track of per VM NIC changes on
-an SDC data center. There is one Networking agent installed per Compute Node.
+The SDC networking agent (net-agent) is a library for keeping track of per VM NIC changes on
+a SDC data center. There is one networking agent installed per compute node.
 NIC changes trigger updates on [NAPI](https://github.com/joyent/sdc-napi) so
 data is persisted.
 
-This repository is part of the Joyent SmartDataCenter project (SDC).  For
-contribution guidelines, issues, and general documentation, visit the main
-[SDC](http://github.com/joyent/sdc) project page.
+This repository is part of the SmartDataCenter (SDC) project. For
+contribution guidelines, issues, and general documentation, visit the
+[main SDC project](http://github.com/joyent/sdc).
 
-# Development
+## Development
 
-Typically sdc-net-agent development is done by:
+Typically net-agent development is done by:
 
-- making edits to a clone of sdc-net-agent.git on a Mac (likely Linux too, but
+1. Making edits to a clone of sdc-net-agent.git on a Mac (likely Linux too, but
   that's untested) or a SmartOS development zone,
 
         git clone git@github.com:joyent/sdc-net-agent.git
@@ -32,22 +32,22 @@ Typically sdc-net-agent development is done by:
         git submodule update --init   # not necessary first time
         vi
 
-- building:
+1. Building:
 
         make all
         make check
 
-- syncing changes to a running SDC (typically a COAL running locally in VMWare)
-  via:
+1. Syncing changes to a running SDC (typically a CoaL running locally in VMWare)
+   via:
         ./tools/rsync-to coal
 
-- then testing changes in that SDC (e.g. COAL).
-  See "Testing" below for running the test suite.
+1. Then testing changes in that SDC (e.g. CoaL).
+   See "Testing" below for running the test suite.
 
 
 ## Testing
 
-At the moment, sdc-net-agent testing is done by running the VMAPI test suite.
+At the moment, net-agent testing is done by running the VMAPI test suite.
 SSH into a running SDC and run the following commands:
 
 	touch /lib/sdc/.sdc-test-no-production-data
@@ -58,3 +58,8 @@ calling:
 
 	tail -f `svcs -L net-agent` | bunyan
 
+
+## License
+
+SDC networking agent is licensed under the
+[Mozilla Public License version 2.0](http://mozilla.org/MPL/2.0/).
