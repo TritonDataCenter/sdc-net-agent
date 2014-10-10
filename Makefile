@@ -33,7 +33,7 @@ JSSTYLE_FLAGS    = -o indent=4,doxygen,unparenthesized-return=0
 
 # Should be the same version as the platform's /usr/node/bin/node.
 NODE_PREBUILT_TAG=gz
-NODE_PREBUILT_VERSION=v0.10.26
+NODE_PREBUILT_VERSION=v0.11.14
 ifeq ($(shell uname -s),SunOS)
     NODE_PREBUILT_TAG=zone
     # Allow building on a SmartOS image other than sdc-smartos/1.6.3.
