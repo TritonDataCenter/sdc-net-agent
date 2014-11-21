@@ -118,7 +118,7 @@ if [[ -z $CONFIG_sapi_domain ]]; then
     exit 0
 fi
 
-if [[ $CONFIG_die_rabbit_die == "true" ]]; then
+if [[ $CONFIG_no_rabbit == "true" ]]; then
     export ENABLED=true
 fi
 
