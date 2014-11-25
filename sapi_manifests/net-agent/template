@@ -1,3 +1,4 @@
 {
-	"napi": { "url": "http://{{{NAPI_SERVICE}}}" }
+	"napi": { "url": "http://{{{NAPI_SERVICE}}}" },
+	"no_rabbit": {{#no_rabbit}}true{{/no_rabbit}}{{^no_rabbit}}false{{/no_rabbit}}
 }

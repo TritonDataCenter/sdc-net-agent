@@ -16,7 +16,7 @@ export PREFIX=$npm_config_prefix
 export ETC_DIR=$npm_config_etc
 export SMF_DIR=$npm_config_smfdir
 export VERSION=$npm_package_version
-export ENABLED=false
+export ENABLED=true
 
 . /lib/sdc/config.sh
 load_sdc_config
@@ -109,17 +109,14 @@ function adopt_instance()
     echo "Adopted service ${AGENT} to instance ${instance_uuid}"
 }
 
+import_smf_manifest
+
 # If agentsshar is being installed on an old SAPI/CN, we can leave this instance
 # disabled and avoid running any SAPI-dependant configuration. sapi_domain is
-# zero length when a proper upgrade scripts were not executed for this CN
+# zero length when the upgrade scripts we need were not executed for this CN
 if [[ -z $CONFIG_sapi_domain ]]; then
     echo "sapi_domain was not found on node.config, agent will be installed but not configured"
-    import_smf_manifest
     exit 0
-fi
-
-if [[ $CONFIG_no_rabbit == "true" ]]; then
-    export ENABLED=true
 fi
 
 SAPI_URL=http://${CONFIG_sapi_domain}
@@ -136,15 +133,13 @@ have_sapi=false
 
 (sdc-sapi /ping)
 if [[ $? == 0 ]]; then
-	have_sapi="true"
+    have_sapi="true"
 fi
-
-import_smf_manifest
 
 # case 1) is first time this agent is installed on the headnode. Disable its
 # service until config-agent sets up its config
 if [[ $is_headnode == "true" ]] && [[ $have_sapi == "false" ]]; then
-    svcadm disable $AGENT
+    echo "cannot configure new agent on headnode with no SAPI connectivity"
     exit 0
 fi
 
