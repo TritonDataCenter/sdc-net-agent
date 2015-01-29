@@ -1,8 +1,9 @@
 {
     "name": "net-agent",
     "description": "SmartDC Net Agent",
-    "version": "1.1.0",
-    "author": "Andres Rodriguez (andres@joyent.com)",
+    "version": "1.2.0",
+    "author": "Joyent (joyent.com)",
+    "private": true,
     "dependencies": {
         "async": "0.1.18",
         "backoff": "2.3.0",

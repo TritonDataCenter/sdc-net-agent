@@ -7,7 +7,7 @@
 -->
 
 <!--
-    Copyright (c) 2014, Joyent, Inc.
+    Copyright (c) 2015, Joyent, Inc.
 -->
 
 <service_bundle type="manifest" name="net-agent">
@@ -27,15 +27,16 @@
     <exec_method
       type="method"
       name="start"
-      exec="/usr/bin/ctrun -l child -o noorphan @@PREFIX@@/lib/node_modules/net-agent/node/bin/node --abort_on_uncaught_exception @@PREFIX@@/bin/net-agent &amp;"
+      exec="@@ROOT@@/smf/method/vm-agent %m"
       timeout_seconds="60">
-    <method_context>
-      <method_credential user="root" group="staff"/>
-      <method_environment>
-        <envvar name="NODE_PATH" value="/usr/node_modules:/usr/vm/node_modules"/>
-        <envvar name="PATH" value="@@PREFIX@@/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
-      </method_environment>
-    </method_context>
+      <method_context>
+        <method_credential user="root" group="staff"/>
+        <method_environment>
+          <!-- TODO: NODE_PATH wanted here? -->
+          <envvar name="NODE_PATH" value="/usr/node_modules:/usr/vm/node_modules"/>
+          <envvar name="PATH" value="@@PREFIX@@/bin:/usr/local/bin:/opt/local/bin:/usr/bin:/usr/sbin:/bin"/>
+        </method_environment>
+      </method_context>
     </exec_method>
 
     <exec_method type="method" name="restart" exec=":kill" timeout_seconds="60">
@@ -55,16 +56,15 @@
     </property_group>
 
     <property_group name="application" type="application">
-
     </property_group>
-
 
     <stability value="Evolving"/>
 
     <template>
       <common_name>
-        <loctext xml:lang="C">Heartbeater Daemon (node)</loctext>
+        <loctext xml:lang="C">SmartDataCenter Network Agent</loctext>
       </common_name>
     </template>
+
   </service>
 </service_bundle>

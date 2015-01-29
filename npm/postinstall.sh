@@ -6,11 +6,12 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2015, Joyent, Inc.
 #
 
 set -o xtrace
-DIR=`dirname $0`
+
+ROOT=$(cd `dirname $0`/../ 2>/dev/null && pwd)
 
 export PREFIX=$npm_config_prefix
 export ETC_DIR=$npm_config_etc
@@ -35,19 +36,22 @@ function warn_and_exit()
     exit 0
 }
 
-function subfile()
-{
+function subfile() {
   IN=$1
   OUT=$2
   sed -e "s#@@PREFIX@@#$PREFIX#g" \
       -e "s/@@VERSION@@/$VERSION/g" \
+      -e "s#@@ROOT@@#$ROOT#g" \
       -e "s/@@ENABLED@@/$ENABLED/g" \
       $IN > $OUT
 }
 
 function import_smf_manifest()
 {
-    subfile "$DIR/../smf/manifests/$AGENT.xml.in" "$SMF_DIR/$AGENT.xml"
+    subfile "$ROOT/smf/method/$AGENT.in" "$ROOT/smf/method/$AGENT"
+    chmod +x "$ROOT/smf/method/$AGENT"
+
+    subfile "$ROOT/smf/manifests/$AGENT.xml.in" "$SMF_DIR/$AGENT.xml"
     svccfg import $SMF_DIR/$AGENT.xml
 }
 

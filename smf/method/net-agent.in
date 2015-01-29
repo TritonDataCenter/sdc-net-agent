@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright (c) 2015, Joyent, Inc.
+#
+
+#
+# SMF Startup script for net-agent
+#
+
+set -o xtrace
+
+. /lib/svc/share/smf_include.sh
+. /lib/sdc/config.sh
+
+
+# net-agent logadm configuration
+logadm -w net_agent_logs -C 168 -S 1g -c -p 1h \
+    -t '/var/log/net-agent/net-agent_$nodename_%FT%H:%M:%S.log' \
+    /var/svc/log/*net-agent*.log
+
+
+case "$1" in
+'start')
+    /usr/bin/ctrun -l child -o noorphan @@ROOT@@/node/bin/node --abort_on_uncaught_exception @@ROOT@@/bin/net-agent &
+    ;;
+
+'stop')
+    echo "'stop' not yet supported" >&2
+    exit $SMF_EXIT_ERR_FATAL
+    ;;
+
+*)
+    echo "Usage: $0 { start | stop }"
+    exit $SMF_EXIT_ERR_FATAL
+    ;;
+esac
+exit $SMF_EXIT_OK
