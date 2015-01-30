@@ -27,7 +27,7 @@
     <exec_method
       type="method"
       name="start"
-      exec="@@ROOT@@/smf/method/vm-agent %m"
+      exec="@@ROOT@@/smf/method/net-agent %m"
       timeout_seconds="60">
       <method_context>
         <method_credential user="root" group="staff"/>
