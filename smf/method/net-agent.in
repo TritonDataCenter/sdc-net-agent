@@ -20,6 +20,7 @@ set -o xtrace
 
 
 # net-agent logadm configuration
+mkdir -p -m 0750 /var/log/net-agent
 logadm -w net_agent_logs -C 168 -S 1g -c -p 1h \
     -t '/var/log/net-agent/net-agent_$nodename_%FT%H:%M:%S.log' \
     /var/svc/log/*net-agent*.log
