@@ -15,12 +15,17 @@
 var path = require('path');
 var fs = require('fs');
 var bunyan = require('bunyan');
+var bunyanSerializers = require('../lib/log-serializers');
 var async = require('async');
 var execFile = require('child_process').execFile;
 var VM = require('/usr/vm/node_modules/VM');
 
 var logLevel = (process.env.LOG_LEVEL || 'debug');
-var logger = bunyan.createLogger({ name: 'net-agent', level: logLevel });
+var logger = bunyan.createLogger({
+    name: 'net-agent',
+    level: logLevel,
+    serializers: bunyanSerializers
+});
 
 var NetAgent = require('../lib');
 
