@@ -19,15 +19,24 @@ set -o xtrace
 . /lib/sdc/config.sh
 
 
-# net-agent logadm configuration
-mkdir -p -m 0750 /var/log/net-agent
-logadm -w net_agent_logs -C 168 -S 1g -c -p 1h \
-    -t '/var/log/net-agent/net-agent_$nodename_%FT%H:%M:%S.log' \
-    /var/svc/log/*net-agent*.log
+function setup_logadm {
+    mkdir -p -m 0750 /var/log/net-agent
+    logadm -w net_agent_logs -C 168 -S 1g -c -p 1h \
+        -t '/var/log/net-agent/net-agent_$nodename_%FT%H:%M:%S.log' \
+        /var/svc/log/*net-agent*.log
+
+    # Move the smf_logs entry to run last (after the entries we just added) so
+    # that the default '-C' (from
+    # https://github.com/joyent/smartos-live/blob/master/overlay/generic/etc/logadm.conf)
+    # doesn't defeat our attempts to rotate out of "/var/svc/log".
+    /usr/sbin/logadm -r smf_logs
+    /usr/sbin/logadm -w smf_logs -C 8 -c -s 1m '/var/svc/log/*.log'
+}
 
 
 case "$1" in
 'start')
+    setup_logadm
     /usr/bin/ctrun -l child -o noorphan @@ROOT@@/node/bin/node --abort_on_uncaught_exception @@ROOT@@/bin/net-agent &
     ;;
 
