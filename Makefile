@@ -25,46 +25,58 @@
 #
 # Files
 #
-JS_FILES	:= $(shell ls *.js 2>/dev/null) $(shell find bin lib test -name '*.js' 2>/dev/null)
-JSL_CONF_NODE	 = tools/jsl.node.conf
-JSL_FILES_NODE   = $(JS_FILES)
-JSSTYLE_FILES	 = $(JS_FILES)
-JSSTYLE_FLAGS    = -o indent=4,doxygen,unparenthesized-return=0
+JS_FILES :=		$(shell ls *.js 2>/dev/null) \
+			$(shell find bin lib test -name '*.js' 2>/dev/null)
+JSL_CONF_NODE =		tools/jsl.node.conf
+JSL_FILES_NODE =	$(JS_FILES)
+JSSTYLE_FILES =		$(JS_FILES)
+JSSTYLE_FLAGS =		-o indent=4,doxygen,unparenthesized-return=0
 
 # Should be the same version as the platform's /usr/node/bin/node.
-NODE_PREBUILT_TAG=gz
-NODE_PREBUILT_VERSION=v0.10.26
+NODE_PREBUILT_TAG =	gz
+NODE_PREBUILT_VERSION =	v0.10.26
+
 ifeq ($(shell uname -s),SunOS)
-    NODE_PREBUILT_TAG=zone
-    # Allow building on a SmartOS image other than sdc-smartos/1.6.3.
-    NODE_PREBUILT_IMAGE=fd2cc906-8938-11e3-beab-4359c665ac99
+NODE_PREBUILT_TAG =	zone
+# Allow building on a SmartOS image other than sdc-smartos/1.6.3.
+NODE_PREBUILT_IMAGE =	fd2cc906-8938-11e3-beab-4359c665ac99
 endif
 
 # Included definitions
 include ./tools/mk/Makefile.defs
 ifeq ($(shell uname -s),SunOS)
-	include ./tools/mk/Makefile.node_prebuilt.defs
+include ./tools/mk/Makefile.node_prebuilt.defs
 else
-	include ./tools/mk/Makefile.node.defs
+include ./tools/mk/Makefile.node.defs
 endif
 include ./tools/mk/Makefile.node_deps.defs
 include ./tools/mk/Makefile.smf.defs
 
-NAME		:= net-agent
-RELEASE_TARBALL := $(NAME)-$(STAMP).tgz
-RELEASE_MANIFEST := $(NAME)-$(STAMP).manifest
-RELSTAGEDIR          := /tmp/$(STAMP)
-NODEUNIT	= $(TOP)/node_modules/.bin/nodeunit
+NAME :=			net-agent
+RELEASE_TARBALL :=	$(NAME)-$(STAMP).tgz
+RELEASE_MANIFEST :=	$(NAME)-$(STAMP).manifest
+RELSTAGEDIR :=		/tmp/$(STAMP)
+NODEUNIT =		$(TOP)/node_modules/.bin/nodeunit
+
+#
+# Due to the unfortunate nature of npm, the Node Package Manager, there appears
+# to be no way to assemble our dependencies without running the lifecycle
+# scripts.  These lifecycle scripts should not be run except in the context of
+# an agent installation or uninstallation, so we provide a magic environment
+# varible to disable them here.
+#
+NPM_ENV =		SDC_AGENT_SKIP_LIFECYCLE=yes
+RUN_NPM_INSTALL =	$(NPM_ENV) $(NPM) install
 
 #
 # Repo-specific targets
 #
 .PHONY: all
 all: $(SMF_MANIFESTS) | $(NPM_EXEC) $(REPO_DEPS)
-	$(NPM) install
+	$(RUN_NPM_INSTALL)
 
 $(NODEUNIT): | $(NPM_EXEC)
-	$(NPM) install
+	$(RUN_NPM_INSTALL)
 
 CLEAN_FILES += $(TAP) ./node_modules/tap
 
@@ -76,32 +88,33 @@ test: $(TAP)
 release: all deps docs $(SMF_MANIFESTS)
 	@echo "Building $(RELEASE_TARBALL)"
 	@mkdir -p $(RELSTAGEDIR)/$(NAME)
-	cd $(TOP) && $(NPM) install
-	(git symbolic-ref HEAD | awk -F/ '{print $$3}' && git describe) > $(TOP)/describe
+	cd $(TOP) && $(RUN_NPM_INSTALL)
+	(git symbolic-ref HEAD | awk -F/ '{print $$3}' && git describe) \
+	    > $(TOP)/describe
 	cp -r \
-    $(TOP)/bin \
-    $(TOP)/describe \
-    $(TOP)/lib \
-    $(TOP)/Makefile \
-    $(TOP)/node_modules \
-    $(TOP)/package.json \
-    $(TOP)/sapi_manifests \
-    $(TOP)/smf \
-    $(TOP)/npm \
-    $(RELSTAGEDIR)/$(NAME)
+	    $(TOP)/bin \
+	    $(TOP)/describe \
+	    $(TOP)/lib \
+	    $(TOP)/Makefile \
+	    $(TOP)/node_modules \
+	    $(TOP)/package.json \
+	    $(TOP)/sapi_manifests \
+	    $(TOP)/smf \
+	    $(TOP)/npm \
+	    $(RELSTAGEDIR)/$(NAME)
 	cp -PR $(NODE_INSTALL) $(RELSTAGEDIR)/$(NAME)/node
 	uuid -v4 > $(RELSTAGEDIR)/$(NAME)/image_uuid
-	(cd $(RELSTAGEDIR) && $(TAR) -zcf $(TOP)/$(RELEASE_TARBALL) *)
+	cd $(RELSTAGEDIR) && $(TAR) -zcf $(TOP)/$(RELEASE_TARBALL) *
 	cat $(TOP)/manifest.tmpl | sed \
-		-e "s/UUID/$$(cat $(RELSTAGEDIR)/$(NAME)/image_uuid)/" \
-		-e "s/NAME/$$(json name < $(TOP)/package.json)/" \
-		-e "s/VERSION/$$(json version < $(TOP)/package.json)/" \
-		-e "s/DESCRIPTION/$$(json description < $(TOP)/package.json)/" \
-		-e "s/BUILDSTAMP/$(STAMP)/" \
-		-e "s/SIZE/$$(stat --printf="%s" $(TOP)/$(RELEASE_TARBALL))/" \
-		-e "s/SHA/$$(openssl sha1 $(TOP)/$(RELEASE_TARBALL) \
-		    | cut -d ' ' -f2)/" \
-		> $(TOP)/$(RELEASE_MANIFEST)
+	    -e "s/UUID/$$(cat $(RELSTAGEDIR)/$(NAME)/image_uuid)/" \
+	    -e "s/NAME/$$(json name < $(TOP)/package.json)/" \
+	    -e "s/VERSION/$$(json version < $(TOP)/package.json)/" \
+	    -e "s/DESCRIPTION/$$(json description < $(TOP)/package.json)/" \
+	    -e "s/BUILDSTAMP/$(STAMP)/" \
+	    -e "s/SIZE/$$(stat --printf="%s" $(TOP)/$(RELEASE_TARBALL))/" \
+	    -e "s/SHA/$$(openssl sha1 $(TOP)/$(RELEASE_TARBALL) \
+	    | cut -d ' ' -f2)/" \
+	    > $(TOP)/$(RELEASE_MANIFEST)
 	@rm -rf $(RELSTAGEDIR)
 
 .PHONY: publish
@@ -124,9 +137,9 @@ dumpvar:
 
 include ./tools/mk/Makefile.deps
 ifeq ($(shell uname -s),SunOS)
-	include ./tools/mk/Makefile.node_prebuilt.targ
+include ./tools/mk/Makefile.node_prebuilt.targ
 else
-	include ./tools/mk/Makefile.node.targ
+include ./tools/mk/Makefile.node.targ
 endif
 include ./tools/mk/Makefile.node_deps.targ
 include ./tools/mk/Makefile.smf.targ
