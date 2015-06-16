@@ -6,14 +6,28 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright 2015 Joyent, Inc.
 #
 
-export SMFDIR=$npm_config_smfdir
-
-if svcs net-agent; then
-svcadm disable -s net-agent
-svccfg delete net-agent
+if [[ "${SDC_AGENT_SKIP_LIFECYCLE:-no}" = "yes" ]]; then
+    printf 'Running during package build; skipping lifecycle script.\n' >&2
+    exit 0
 fi
 
-rm -f "$SMFDIR/net-agent.xml"
+ROOT="$(cd `dirname $0`/../ 2>/dev/null && pwd)"
+
+. "${ROOT}/npm/lib/error_handler.sh"
+. "${ROOT}/npm/lib/trace_logger.sh"
+
+set -o nounset
+
+export SMF_DIR="${npm_config_smfdir}"
+
+AGENT="${npm_package_name}"
+
+if svcs "${AGENT}"; then
+    svcadm disable -s "${AGENT}"
+    svccfg delete "${AGENT}"
+fi
+
+rm -f "${SMF_DIR}/${AGENT}.xml"

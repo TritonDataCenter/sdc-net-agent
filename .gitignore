@@ -7,3 +7,6 @@ cscope.in.out
 cscope.po.out
 cscope.out
 smf/manifests/bapi.xml
+describe
+net-agent-*.tgz
+net-agent-*.manifest
