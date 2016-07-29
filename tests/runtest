@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+#
+# Copyright 2016 Joyent, Inc.
+#
+
+#
+# Run a single net-agent test of any type.
+
+TOP=$(cd $(dirname $0)/../; pwd)
+NODE_INSTALL=$TOP/node
+UNAME=$(uname -s)
+
+guard_file=/lib/sdc/.sdc-test-no-production-data
+if [[ $UNAME == "SunOS" ]] && [[ ! -f "$guard_file" ]]; then
+    cat <<EOF
+To run this test you must create the file:
+
+    $guard_file
+
+after ensuring you have no production data on this SDC.
+EOF
+    exit 2
+fi
+
+if [[ $1 != "" ]]; then
+	PATH=$NODE_INSTALL/bin:$PATH node $1
+else
+	echo "You must supply an argument to this script"
+fi

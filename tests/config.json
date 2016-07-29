@@ -1,0 +1,8 @@
+{
+    "vmapi": {
+        "url": "http://vmapi.coal-1.joyent.us"
+    },
+    "napi": {
+        "url": "http://napi.coal-1.joyent.us"
+    }
+}

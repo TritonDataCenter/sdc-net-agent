@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2015, Joyent, Inc.
+ * Copyright 2016 Joyent, Inc.
  */
 
 /*
@@ -32,11 +32,6 @@ var config = { log: logger };
 var sdcConfig;
 var agentConfig;
 var sysinfo;
-
-process.on('uncaughtException', function (e) {
-    console.error('uncaught exception:' + e.message);
-    console.log(e.stack);
-});
 
 function loadConfig(callback) {
     var configPath = '/opt/smartdc/agents/etc/net-agent.config.json';
@@ -129,7 +124,15 @@ async.waterfall([
     var netagent;
     if (agentConfig.no_rabbit) {
         netagent = new NetAgent(config);
-        netagent.start();
+        netagent.start(function (err2) {
+            if (err2) {
+                logger.fatal(err2, 'Failed to initialize server');
+                process.exit(1);
+            }
+            var addr = netagent.na_server.address();
+            logger.info('%s listening on <http://%s:%s>',
+                netagent.na_server.name, addr.address, addr.port);
+        });
     } else {
         logger.warn('"no_rabbit" flag is not true, net-agent will now sleep');
         // http://nodejs.org/docs/latest/api/all.html#all_settimeout_cb_ms
