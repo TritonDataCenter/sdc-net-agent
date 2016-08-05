@@ -5,20 +5,21 @@
 -->
 
 <!--
-    Copyright (c) 2014, Joyent, Inc.
+    Copyright (c) 2016, Joyent, Inc.
 -->
 
 
 # sdc-net-agent
 
+This repository is part of the Joyent Triton project. See the [contribution
+guidelines](https://github.com/joyent/triton/blob/master/CONTRIBUTING.md) --
+*Triton does not use GitHub PRs* -- and general documentation at the main
+[Triton project](https://github.com/joyent/triton) page.
+
 The SDC Networking agent is a library for keeping track of per VM NIC changes on
-an SDC data center. There is one Networking agent installed per Compute Node.
+a Triton data center. There is one Networking agent installed per Compute Node.
 NIC changes trigger updates on [NAPI](https://github.com/joyent/sdc-napi) so
 data is persisted.
-
-This repository is part of the Joyent SmartDataCenter project (SDC).  For
-contribution guidelines, issues, and general documentation, visit the main
-[SDC](http://github.com/joyent/sdc) project page.
 
 # Development
 
