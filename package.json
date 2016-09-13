@@ -12,7 +12,7 @@
         "bunyan": "1.3.2",
         "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#aefc119",
         "restify": "2.7.0",
-        "sdc-clients": "^9.5.0",
+        "sdc-clients": "git+https://github.com/joyent/node-sdc-clients.git#22fafaf5578",
         "vmadm": "git+https://github.com/joyent/node-vmadm.git#3cf878481d24c1bc1e74e85a95004a3dde6329f1",
         "lstream": "0.0.4",
         "verror": "^1.6.1",
