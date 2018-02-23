@@ -32,14 +32,17 @@ JSL_FILES_NODE =	$(JS_FILES)
 JSSTYLE_FILES =		$(JS_FILES)
 JSSTYLE_FLAGS =		-o indent=4,doxygen,unparenthesized-return=0
 
-# Should be the same version as the platform's /usr/node/bin/node.
-NODE_PREBUILT_TAG =	gz
-NODE_PREBUILT_VERSION =	v0.10.26
+# Even if net-agent runs in the GZ, we use a node build with a "zone" tag
+# because a "gz" node build is not currently available for multiarch-15.4.1
+# images. However, a "gz" build would not differ from the one with the "zone"
+# tag, so it's safe to use the "zone" one until the "gz" one is available.
+NODE_PREBUILT_TAG =	zone
+NODE_PREBUILT_VERSION =	v0.10.48
 
 ifeq ($(shell uname -s),SunOS)
 NODE_PREBUILT_TAG =	zone
-# Allow building on a SmartOS image other than sdc-smartos/1.6.3.
-NODE_PREBUILT_IMAGE =	fd2cc906-8938-11e3-beab-4359c665ac99
+# sdc-minimal-multiarch-lts 15.4.1
+NODE_PREBUILT_IMAGE =	18b094b0-eb01-11e5-80c1-175dac7ddf02
 endif
 
 # Included definitions
