@@ -5,7 +5,7 @@
 #
 
 #
-# Copyright (c) 2014, Joyent, Inc.
+# Copyright (c) 2018, Joyent, Inc.
 #
 
 #
@@ -32,11 +32,7 @@ JSL_FILES_NODE =	$(JS_FILES)
 JSSTYLE_FILES =		$(JS_FILES)
 JSSTYLE_FLAGS =		-o indent=4,doxygen,unparenthesized-return=0
 
-# Even if net-agent runs in the GZ, we use a node build with a "zone" tag
-# because a "gz" node build is not currently available for multiarch-15.4.1
-# images. However, a "gz" build would not differ from the one with the "zone"
-# tag, so it's safe to use the "zone" one until the "gz" one is available.
-NODE_PREBUILT_TAG =	zone
+NODE_PREBUILT_TAG =	gz
 NODE_PREBUILT_VERSION =	v0.10.48
 
 ifeq ($(shell uname -s),SunOS)
