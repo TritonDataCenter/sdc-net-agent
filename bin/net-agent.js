@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2015, Joyent, Inc.
+ * Copyright 2016 Joyent, Inc.
  */
 
 /*
@@ -32,11 +32,6 @@ var config = { log: logger };
 var sdcConfig;
 var agentConfig;
 var sysinfo;
-
-process.on('uncaughtException', function (e) {
-    console.error('uncaught exception:' + e.message);
-    console.log(e.stack);
-});
 
 function loadConfig(callback) {
     var configPath = '/opt/smartdc/agents/etc/net-agent.config.json';

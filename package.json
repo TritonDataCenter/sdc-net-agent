@@ -6,12 +6,18 @@
     "private": true,
     "dependencies": {
         "async": "0.1.18",
-        "backoff": "2.3.0",
+        "vasync": "^1.6.4",
+        "assert-plus": "^1.0.0",
+        "backoff": "2.5.0",
         "bunyan": "1.3.2",
         "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#aefc119",
-        "nodeunit": "0.7.4",
         "restify": "2.7.0",
-        "sdc-clients": "git+https://github.com/joyent/node-sdc-clients.git#c962959"
+        "sdc-clients": "^9.5.0",
+        "vmadm": "1.0.0",
+        "lstream": "0.0.4",
+        "verror": "^1.6.1",
+        "jsprim": "^1.3.0",
+        "forkexec": "^1.1.0"
     },
     "sdcDependencies": {
         "config-agent": ">=1.3.0"
