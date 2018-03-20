@@ -1,26 +1,32 @@
 {
     "name": "net-agent",
-    "description": "SmartDataCenter Network Agent",
-    "version": "1.4.0",
+    "description": "Triton Network Agent",
+    "version": "2.0.0",
     "author": "Joyent (joyent.com)",
     "private": true,
     "dependencies": {
-        "async": "0.1.18",
-        "vasync": "^1.6.4",
         "assert-plus": "^1.0.0",
-        "backoff": "2.5.0",
-        "bunyan": "1.3.2",
-        "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#aefc119",
-        "restify": "2.7.0",
-        "sdc-clients": "^9.5.0",
-        "vmadm": "1.0.0",
+        "bunyan": "1.8.12",
+        "cueball": "2.5.1",
+        "forkexec": "1.1.0",
+        "jsprim": "1.4.1",
+        "kang": "1.2.0",
         "lstream": "0.0.4",
+        "mooremachine": "2.2.0",
+        "restify": "4.3.0",
+        "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#aefc119",
+        "sdc-clients": "^10.5.0",
+        "uuid": "3.2.1",
+        "vasync": "^1.6.4",
         "verror": "^1.6.1",
-        "jsprim": "^1.3.0",
-        "forkexec": "^1.1.0"
+        "vmadm": "1.0.0"
     },
     "sdcDependencies": {
         "config-agent": ">=1.3.0"
+    },
+    "devDependencies": {
+        "eslint": "^4.13.1",
+        "eslint-plugin-joyent": "~2.0.0"
     },
     "scripts": {
         "postinstall": "npm/postinstall.sh",

@@ -5,19 +5,18 @@
  */
 
 /*
- * Copyright 2016 Joyent, Inc.
+ * Copyright (c) 2018 Joyent, Inc.
  */
 
 /*
  * net-agent.js
  */
 
-var path = require('path');
+'use strict';
+
 var fs = require('fs');
 var bunyan = require('bunyan');
 var bunyanSerializers = require('sdc-bunyan-serializers');
-var async = require('async');
-var execFile = require('child_process').execFile;
 
 var logLevel = (process.env.LOG_LEVEL || 'debug');
 var logger = bunyan.createLogger({
@@ -28,107 +27,53 @@ var logger = bunyan.createLogger({
 
 var NetAgent = require('../lib');
 
-var config = { log: logger };
-var sdcConfig;
-var agentConfig;
-var sysinfo;
+var NET_AGENT_CONFIG_PATH = '/opt/smartdc/agents/etc/net-agent.config.json';
+var NET_AGENT_CONFIG_SLEEP = 10000;
 
+/**
+ * Wait until our configuration file appears, and then try to parse it.
+ */
 function loadConfig(callback) {
-    var configPath = '/opt/smartdc/agents/etc/net-agent.config.json';
+    var txt, config;
 
     try {
-        agentConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        txt = fs.readFileSync(NET_AGENT_CONFIG_PATH, 'utf-8');
     } catch (e) {
-        logger.error(e, 'Could not parse agent config: "%s", '
-            + 'attempting to load from /lib/sdc/config.sh now', e.message);
-    }
-
-    return callback(null);
-}
-
-// If we are unable to read a config-agent managed configuration, then we
-// have to rely on sdc/config.sh and turn off no_rabbit
-function loadSdcConfig(callback) {
-    if (agentConfig !== undefined) {
-        callback();
+        logger.error(e,
+            'Could not read agent configuration at %s', NET_AGENT_CONFIG_PATH);
+        setTimeout(loadConfig, NET_AGENT_CONFIG_SLEEP, callback);
         return;
     }
 
-    execFile('/bin/bash', ['/lib/sdc/config.sh', '-json'],
-        function _loadConfig(err, stdout, stderr) {
-            if (err) {
-                logger.fatal(err, 'Could not load sdc config: ' + stderr);
-                return callback(err);
-            }
+    try {
+        config = JSON.parse(txt);
+    } catch (e) {
+        callback(e);
+        return;
+    }
 
-            try {
-                sdcConfig = JSON.parse(stdout);
-                agentConfig = {
-                    napi: { url: 'http://' + sdcConfig.napi_domain },
-                    no_rabbit: false
-                };
-            } catch (e) {
-                logger.fatal(e, 'Could not parse sdc config: ' + e.message);
-                return callback(e);
-            }
-
-            return callback(null);
-    });
+    callback(null, config);
 }
 
-
-// Run the sysinfo script and return the captured stdout, stderr, and exit
-// status code.
-function loadSysinfo(callback) {
-    execFile('/usr/bin/sysinfo', [], function (err, stdout, stderr) {
-        if (err) {
-            logger.fatal('Could not load sysinfo: ' + stderr.toString());
-            return callback(err);
-        }
-
-        try {
-            sysinfo = JSON.parse(stdout);
-        } catch (e) {
-            logger.fatal(e, 'Could not parse sysinfo: ' + e.message);
-            return callback(e);
-        }
-
-        return callback(null);
-    });
-}
-
-
-async.waterfall([
-    loadConfig,
-    loadSdcConfig,
-    loadSysinfo
-], function (err) {
+loadConfig(function afterLoadConfig(err, config) {
     if (err) {
         logger.fatal('Failed to initialize net-agent configuration');
         process.exit(1);
     }
 
-    if (!sysinfo.UUID) {
-        logger.fatal('Could not find "UUID" in `sysinfo` output.');
-        process.exit(1);
-    }
-
-    config.uuid = sysinfo.UUID;
-    config.url = agentConfig.napi.url;
-
-    if (!config.url) {
-        logger.fatal('config.url is required');
-        process.exit(1);
-    }
-
-    var netagent;
-    if (agentConfig.no_rabbit) {
-        netagent = new NetAgent(config);
-        netagent.start();
-    } else {
+    if (!config.no_rabbit) {
         logger.warn('"no_rabbit" flag is not true, net-agent will now sleep');
-        // http://nodejs.org/docs/latest/api/all.html#all_settimeout_cb_ms
-        // ...The timeout must be in the range of 1-2,147,483,647 inclusive...
+        /*
+         * http://nodejs.org/docs/latest/api/all.html#all_settimeout_cb_ms
+         * The timeout must be in the range of 1 to 2,147,483,647 inclusive...
+         */
         setInterval(function () {}, 2000000000);
+        return;
     }
+
+    config.log = logger;
+
+    var netagent = new NetAgent(config);
+
+    netagent.start();
 });

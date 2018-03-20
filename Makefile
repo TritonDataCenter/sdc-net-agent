@@ -31,8 +31,9 @@ JSL_CONF_NODE =		tools/jsl.node.conf
 JSL_FILES_NODE =	$(JS_FILES)
 JSSTYLE_FILES =		$(JS_FILES)
 JSSTYLE_FLAGS =		-o indent=4,doxygen,unparenthesized-return=0
+ESLINT_FILES =		$(JS_FILES)
 
-NODE_PREBUILT_VERSION =	v0.10.48
+NODE_PREBUILT_VERSION =	v4.6.1
 
 ifeq ($(shell uname -s),SunOS)
 NODE_PREBUILT_TAG =	gz

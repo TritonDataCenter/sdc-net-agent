@@ -1,4 +1,25 @@
 {
 	"napi": { "url": "http://{{{NAPI_SERVICE}}}" },
-	"no_rabbit": {{#no_rabbit}}true{{/no_rabbit}}{{^no_rabbit}}false{{/no_rabbit}}
+	"no_rabbit": {{#no_rabbit}}true{{/no_rabbit}}{{^no_rabbit}}false{{/no_rabbit}},
+	"agent_uuid": "{{{auto.INSTANCE_UUID}}}",
+	"cn_uuid": "{{{auto.SERVER_UUID}}}",
+	"bindip": "{{{auto.ADMIN_IP}}}",
+	"admin_uuid": "{{{ufds_admin_uuid}}}",
+	"cueballAgent": {
+		"resolvers": [ "{{{BINDER_SERVICE}}}" ],
+		"initialDomains": [
+			"{{{NAPI_SERVICE}}}"
+		],
+		"spares": 3,
+		"maximum": 10,
+		"recovery": {
+			"default": {
+				"timeout": 2000,
+				"maxTimeout": 8000,
+				"retries": 3,
+				"delay": 0,
+				"maxDelay": 1000
+			}
+		}
+	}
 }

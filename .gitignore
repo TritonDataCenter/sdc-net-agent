@@ -10,3 +10,4 @@ smf/manifests/bapi.xml
 describe
 net-agent-*.tgz
 net-agent-*.manifest
+*.s[a-w][a-z]
