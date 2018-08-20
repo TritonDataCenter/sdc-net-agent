@@ -112,6 +112,7 @@ function loadVm(opts, callback) {
     assert.object(opts, 'opts');
     assert.string(opts.serverRoot, 'serverRoot');
     assert.uuid(opts.serverUuid, 'opts.serverUuid');
+    assert.object(opts.sysinfo, 'opts.sysinfo');
     assert.uuid(opts.uuid, 'opts.uuid');
 
     var filename =
@@ -132,7 +133,8 @@ function loadVm(opts, callback) {
                 file: filename,
                 vmobj: vmobj,
                 serverRoot: opts.serverRoot,
-                serverUuid: opts.serverUuid
+                serverUuid: opts.serverUuid,
+                sysinfo: opts.sysinfo
             },
             funcs: [
                 loadTimestamp,
@@ -183,6 +185,7 @@ function loadVms(opts, callback) {
             func: function _loadVm(uuid, cb) {
                 loadVm({
                     serverRoot: opts.serverRoot,
+                    serverUuid: opts.sysinfo.UUID,
                     sysinfo: opts.sysinfo,
                     uuid: uuid
                 }, cb);
