@@ -774,7 +774,6 @@ function _dispatchEvent(evtName, zonename, opts, handler) {
     assert.string(evtName, 'evtName');
     assert.uuid(zonename, 'zonename');
     assert.object(opts, 'opts');
-    assert.object(opts.sysinfo, 'opts.sysinfo');
     assert.func(handler, 'handler');
 
     if (self.loadingVms[zonename]) {
@@ -786,6 +785,7 @@ function _dispatchEvent(evtName, zonename, opts, handler) {
 
     loadVm({
         serverRoot: self.serverRoot,
+        serverUuid: self.serverUuid,
         sysinfo: self.sysinfo,
         uuid: zonename
     }, function _onVmLoad(err, vmobj) {
@@ -856,7 +856,7 @@ DummyVmadm.prototype.events = function vmEvents(opts, handler, callback) {
                 fs.exists(path.join(vmdir, fn), function _onExists(exists) {
                     if (exists) {
                         self._dispatchEvent('modify', zoneFromFilename(fn),
-                            {sysinfo: opts.sysinfo}, handler);
+                            {sysinfo: self.sysinfo}, handler);
                     } else {
                         self.log.warn({filename: fn}, 'ignoring modify event '
                             + 'for deleted file');
@@ -905,7 +905,7 @@ DummyVmadm.prototype.events = function vmEvents(opts, handler, callback) {
                             if (exists) {
                                 self._dispatchEvent('modify',
                                     zoneFromFilename(fn),
-                                    {sysinfo: opts.sysinfo}, handler);
+                                    {sysinfo: self.sysinfo}, handler);
                             } else {
                                 self.log.warn({filename: fn}, 'ignoring modify'
                                     + ' event for deleted file');
@@ -918,7 +918,7 @@ DummyVmadm.prototype.events = function vmEvents(opts, handler, callback) {
                             modifyHandler);
 
                     self._dispatchEvent('create', zoneFromFilename(filename),
-                        {sysinfo: opts.sysinfo}, handler);
+                        {sysinfo: self.sysinfo}, handler);
                 }
             }
 
@@ -932,7 +932,7 @@ DummyVmadm.prototype.events = function vmEvents(opts, handler, callback) {
                     }
 
                     self._dispatchEvent('delete', zoneFromFilename(filename),
-                        {sysinfo: opts.sysinfo}, handler);
+                        {sysinfo: self.sysinfo}, handler);
                 }
             }
 

@@ -255,7 +255,7 @@ function main() {
                 },
                 inputs: dirs
             }, function _forEachPipelineComplete(forEachPipelineErr) {
-                console.error('startup sequence complete');
+                logger.info('startup sequence complete');
             });
         });
     });
