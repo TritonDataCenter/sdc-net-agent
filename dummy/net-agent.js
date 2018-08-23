@@ -14,14 +14,18 @@
 
 'use strict';
 
-var assert = require('assert-plus');
 var child_process = require('child_process');
-var bunyan = require('bunyan');
-var bunyanSerializers = require('sdc-bunyan-serializers');
 var fs = require('fs');
 var path = require('path');
+
+var assert = require('assert-plus');
+var bunyan = require('bunyan');
+var bunyanSerializers = require('sdc-bunyan-serializers');
+var DummyVmadm = require('vmadm/lib/index.dummy');
 var uuidv4 = require('uuid/v4');
 var vasync = require('vasync');
+
+var NetAgent = require('../lib');
 
 var logLevel = (process.env.LOG_LEVEL || 'debug');
 var logger = bunyan.createLogger({
@@ -29,9 +33,6 @@ var logger = bunyan.createLogger({
     level: logLevel,
     serializers: bunyanSerializers
 });
-
-var DummyVmadm = require('./vmadm');
-var NetAgent = require('../lib');
 
 
 // This will blow up if something goes wrong. That's what we want.
