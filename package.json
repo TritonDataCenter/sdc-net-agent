@@ -1,7 +1,7 @@
 {
     "name": "net-agent",
     "description": "Triton Network Agent",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "author": "Joyent (joyent.com)",
     "private": true,
     "dependencies": {
@@ -19,7 +19,7 @@
         "uuid": "3.2.1",
         "vasync": "^1.6.4",
         "verror": "^1.6.1",
-        "vmadm": "git+https://github.com/joyent/node-vmadm.git#5f87a87"
+        "vmadm": "git+https://github.com/joyent/node-vmadm.git#grr-TRITON-805"
     },
     "sdcDependencies": {
         "config-agent": ">=1.3.0"

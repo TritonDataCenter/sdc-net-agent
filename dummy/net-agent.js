@@ -21,7 +21,7 @@ var path = require('path');
 var assert = require('assert-plus');
 var bunyan = require('bunyan');
 var bunyanSerializers = require('sdc-bunyan-serializers');
-var DummyVmadm = require('vmadm/lib/index.dummy');
+var DummyVmadm = require('vmadm/lib/index.dummy_vminfod');
 var uuidv4 = require('uuid/v4');
 var vasync = require('vasync');
 
