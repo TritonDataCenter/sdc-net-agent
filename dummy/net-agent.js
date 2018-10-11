@@ -58,6 +58,9 @@ function mdataGet(key, callback) {
 function loadSysinfo(server_uuid, callback) {
     var filename = SERVER_ROOT + '/' + server_uuid + '/sysinfo.json';
 
+    logger.debug({server_uuid: server_uuid},
+        'loading sysinfo for dummy server');
+
     fs.readFile(filename, function onData(err, data) {
         if (err) {
             callback(err);
@@ -164,7 +167,6 @@ function getNetAgentInstanceId(opts, callback) {
 }
 
 function runServer(opts, callback) {
-    var config = {};
     var ctx = opts.ctx;
     var fullDNS = ctx.datacenterName + '.' + ctx.dnsDomain;
 
@@ -172,6 +174,8 @@ function runServer(opts, callback) {
 
     loadSysinfo(opts.serverUuid, function _onSysinfo(err, sysinfo) {
         assert.ifError(err);
+
+        var config = {};
 
         config.admin_uuid = ctx.ufdsAdminUuid;
         config.bindip = ctx.bindIP;
@@ -193,6 +197,9 @@ function runServer(opts, callback) {
         };
         config.datacenterName = ctx.datacenterName;
         config.dnsDomain = ctx.dnsDomain;
+        config.loadSysinfo = function _loadSysinfo(cb) {
+            loadSysinfo(config.cn_uuid, cb);
+        };
         config.log = opts.log;
         config.napi = {
             url: 'http://napi.' + fullDNS
