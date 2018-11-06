@@ -123,48 +123,76 @@ function findDatacenterName(ctx, callback) {
     });
 }
 
-function getNetAgentInstanceId(opts, callback) {
-    assert.object(opts, 'opts');
-    assert.uuid(opts.serverUuid, 'opts.serverUuid');
 
-    var instance_root = path.join(
-        SERVER_ROOT,
-        opts.serverUuid,
-        'agents',
-        'net-agent');
-    var net_agent_instance_file = path.join(instance_root, 'instance_uuid');
+// TODO These next 2 functions should probably eventually go in a common library
+//      for mockcloud agents to use.
 
-    fs.mkdir(instance_root, function _onMkdir(err) {
-        // check for EEXIST, then ignore err
+function _mkdirP(dir, callback) {
+    fs.mkdir(dir, function _onMkdir(err) {
+        // only return when error is not EEXIST (which is fine)
         if (err && err.code !== 'EEXIST') {
             callback(err);
             return;
         }
 
-        fs.readFile(net_agent_instance_file, function onData(err, data) {
-            var instanceUuid;
+        callback();
+    });
+}
 
-            if (err) {
-                if (err.code !== 'ENOENT') {
-                    callback(err);
+function getAgentInstanceId(opts, callback) {
+    assert.object(opts, 'opts');
+    assert.string(opts.agentName, 'opts.agentName');
+    assert.uuid(opts.serverUuid, 'opts.serverUuid');
+
+    var agent_dir;
+    var agents_dir = path.join(SERVER_ROOT, opts.serverUuid, 'agents');
+    var agent_inst_file;
+    var instanceUuid;
+
+    agent_dir = path.join(agents_dir, opts.agentName);
+    agent_inst_file = path.join(agent_dir, 'instance_uuid');
+
+    vasync.pipeline({
+        funcs: [
+            function mkAgentsDir(_, cb) {
+                _mkdirP(agents_dir, cb);
+            },
+            function mkAgentDir(_, cb) {
+                _mkdirP(agent_dir, cb);
+            },
+            function readInstanceFile(_, cb) {
+                fs.readFile(agent_inst_file, function onData(err, data) {
+                    if (err) {
+                        if (err.code !== 'ENOENT') {
+                            cb(err);
+                            return;
+                        }
+                    } else {
+                        instanceUuid = data.toString().trim();
+                    }
+
+                    cb();
+                });
+            },
+            function writeInstanceFile(_, cb) {
+                if (instanceUuid !== undefined) {
+                    // already had one when we read above.
+                    cb();
                     return;
                 }
 
                 instanceUuid = uuidv4();
-                fs.writeFile(net_agent_instance_file, instanceUuid,
-                    function _onWrite(err) {
-
-                    assert.ifError(err);
-
-                    callback(null, instanceUuid);
-                });
-                return;
+                fs.writeFile(agent_inst_file, instanceUuid + '\n', cb);
             }
-
-            instanceUuid = data.toString();
-            callback(null, instanceUuid);
-        });
+        ]
+    }, function _onPipeline(err) {
+        callback(err, instanceUuid);
     });
+}
+
+function getNetAgentInstanceId(opts, callback) {
+    opts.agentName = 'net-agent';
+    getAgentInstanceId(opts, callback);
 }
 
 function runServer(opts, callback) {
