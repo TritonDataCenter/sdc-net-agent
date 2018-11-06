@@ -130,8 +130,9 @@ function getNetAgentInstanceId(opts, callback) {
     var instance_root = path.join(
         SERVER_ROOT,
         opts.serverUuid,
-        'agent_instances');
-    var net_agent_instance_file = path.join(instance_root, 'net-agent');
+        'agents',
+        'net-agent');
+    var net_agent_instance_file = path.join(instance_root, 'instance_uuid');
 
     fs.mkdir(instance_root, function _onMkdir(err) {
         // check for EEXIST, then ignore err
