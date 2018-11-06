@@ -22,6 +22,7 @@ var assert = require('assert-plus');
 var bunyan = require('bunyan');
 var bunyanSerializers = require('sdc-bunyan-serializers');
 var DummyVmadm = require('vmadm/lib/index.dummy_vminfod');
+var mockcloud_common = require('triton-mockcloud-common');
 var uuidv4 = require('uuid/v4');
 var vasync = require('vasync');
 
@@ -34,12 +35,7 @@ var logger = bunyan.createLogger({
     serializers: bunyanSerializers
 });
 
-
-// This will blow up if something goes wrong. That's what we want.
-var MOCKCLOUD_ROOT = process.env.MOCKCLOUD_ROOT ||
-    child_process.execSync('/usr/sbin/mdata-get mockcloudRoot',
-    {encoding: 'utf8'}).trim();
-var SERVER_ROOT = MOCKCLOUD_ROOT + '/servers';
+var SERVER_ROOT = mockcloud_common.consts.SERVER_ROOT;
 
 
 function mdataGet(key, callback) {
@@ -123,76 +119,9 @@ function findDatacenterName(ctx, callback) {
     });
 }
 
-
-// TODO These next 2 functions should probably eventually go in a common library
-//      for mockcloud agents to use.
-
-function _mkdirP(dir, callback) {
-    fs.mkdir(dir, function _onMkdir(err) {
-        // only return when error is not EEXIST (which is fine)
-        if (err && err.code !== 'EEXIST') {
-            callback(err);
-            return;
-        }
-
-        callback();
-    });
-}
-
-function getAgentInstanceId(opts, callback) {
-    assert.object(opts, 'opts');
-    assert.string(opts.agentName, 'opts.agentName');
-    assert.uuid(opts.serverUuid, 'opts.serverUuid');
-
-    var agent_dir;
-    var agents_dir = path.join(SERVER_ROOT, opts.serverUuid, 'agents');
-    var agent_inst_file;
-    var instanceUuid;
-
-    agent_dir = path.join(agents_dir, opts.agentName);
-    agent_inst_file = path.join(agent_dir, 'instance_uuid');
-
-    vasync.pipeline({
-        funcs: [
-            function mkAgentsDir(_, cb) {
-                _mkdirP(agents_dir, cb);
-            },
-            function mkAgentDir(_, cb) {
-                _mkdirP(agent_dir, cb);
-            },
-            function readInstanceFile(_, cb) {
-                fs.readFile(agent_inst_file, function onData(err, data) {
-                    if (err) {
-                        if (err.code !== 'ENOENT') {
-                            cb(err);
-                            return;
-                        }
-                    } else {
-                        instanceUuid = data.toString().trim();
-                    }
-
-                    cb();
-                });
-            },
-            function writeInstanceFile(_, cb) {
-                if (instanceUuid !== undefined) {
-                    // already had one when we read above.
-                    cb();
-                    return;
-                }
-
-                instanceUuid = uuidv4();
-                fs.writeFile(agent_inst_file, instanceUuid + '\n', cb);
-            }
-        ]
-    }, function _onPipeline(err) {
-        callback(err, instanceUuid);
-    });
-}
-
 function getNetAgentInstanceId(opts, callback) {
     opts.agentName = 'net-agent';
-    getAgentInstanceId(opts, callback);
+    mockcloud_common.getAgentInstanceId(opts, callback);
 }
 
 function runServer(opts, callback) {
