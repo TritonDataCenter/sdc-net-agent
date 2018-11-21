@@ -22,6 +22,7 @@ var assert = require('assert-plus');
 var bunyan = require('bunyan');
 var bunyanSerializers = require('sdc-bunyan-serializers');
 var DummyVmadm = require('vmadm/lib/index.dummy_vminfod');
+var mockcloud_common = require('triton-mockcloud-common');
 var uuidv4 = require('uuid/v4');
 var vasync = require('vasync');
 
@@ -34,12 +35,7 @@ var logger = bunyan.createLogger({
     serializers: bunyanSerializers
 });
 
-
-// This will blow up if something goes wrong. That's what we want.
-var MOCKCLOUD_ROOT = process.env.MOCKCLOUD_ROOT ||
-    child_process.execSync('/usr/sbin/mdata-get mockcloudRoot',
-    {encoding: 'utf8'}).trim();
-var SERVER_ROOT = MOCKCLOUD_ROOT + '/servers';
+var SERVER_ROOT = mockcloud_common.consts.SERVER_ROOT;
 
 
 function mdataGet(key, callback) {
@@ -124,46 +120,8 @@ function findDatacenterName(ctx, callback) {
 }
 
 function getNetAgentInstanceId(opts, callback) {
-    assert.object(opts, 'opts');
-    assert.uuid(opts.serverUuid, 'opts.serverUuid');
-
-    var instance_root = path.join(
-        SERVER_ROOT,
-        opts.serverUuid,
-        'agent_instances');
-    var net_agent_instance_file = path.join(instance_root, 'net-agent');
-
-    fs.mkdir(instance_root, function _onMkdir(err) {
-        // check for EEXIST, then ignore err
-        if (err && err.code !== 'EEXIST') {
-            callback(err);
-            return;
-        }
-
-        fs.readFile(net_agent_instance_file, function onData(err, data) {
-            var instanceUuid;
-
-            if (err) {
-                if (err.code !== 'ENOENT') {
-                    callback(err);
-                    return;
-                }
-
-                instanceUuid = uuidv4();
-                fs.writeFile(net_agent_instance_file, instanceUuid,
-                    function _onWrite(err) {
-
-                    assert.ifError(err);
-
-                    callback(null, instanceUuid);
-                });
-                return;
-            }
-
-            instanceUuid = data.toString();
-            callback(null, instanceUuid);
-        });
-    });
+    opts.agentName = 'net-agent';
+    mockcloud_common.getAgentInstanceId(opts, callback);
 }
 
 function runServer(opts, callback) {
