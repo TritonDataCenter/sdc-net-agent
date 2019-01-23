@@ -23,6 +23,7 @@ var bunyan = require('bunyan');
 var bunyanSerializers = require('sdc-bunyan-serializers');
 var DummyVmadm = require('vmadm/lib/index.dummy_vminfod');
 var mockcloud_common = require('triton-mockcloud-common');
+var netconfig = require('triton-netconfig');
 var uuidv4 = require('uuid/v4');
 var vasync = require('vasync');
 
@@ -67,23 +68,22 @@ function loadSysinfo(server_uuid, callback) {
     });
 }
 
-// TODO: should use common method in backends to get rackaware admin IP.
-// For now, just copied this from cn-agent.
 function findZoneAdminIp(ctx, callback) {
     mdataGet('sdc:nics', function _onMdata(err, nicsData) {
         var idx;
-        var nic;
-        var nics = JSON.parse(nicsData.toString());
+        var nics;
 
-        for (idx = 0; idx < nics.length; idx++) {
-            nic = nics[idx];
-            if (nic.nic_tag === 'admin') {
-                ctx.bindIP = nic.ip;
-                break;
-            }
+        try {
+            nics = JSON.parse(nicsData.toString());
+        } catch (e) {
+            callback(e);
+            return;
         }
 
-        assert.string(ctx.bindIP, 'ctx.bindIP');
+        if (!err) {
+            ctx.bindIP = netconfig.adminIpFromNicsArray(nics);
+            assert.string(ctx.bindIP, 'ctx.bindIP');
+        }
 
         callback();
     });

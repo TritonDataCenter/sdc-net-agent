@@ -1,7 +1,7 @@
 {
     "name": "net-agent",
     "description": "Triton Network Agent",
-    "version": "2.2.1",
+    "version": "2.2.2",
     "author": "Joyent (joyent.com)",
     "private": true,
     "dependencies": {
@@ -17,6 +17,7 @@
         "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#aefc119",
         "sdc-clients": "^10.5.0",
         "triton-mockcloud-common": "git+http://github.com/joyent/triton-mockcloud-common.git#master",
+        "triton-netconfig": "1.1.0",
         "uuid": "3.2.1",
         "vasync": "^1.6.4",
         "verror": "^1.6.1",
