@@ -5,7 +5,7 @@
 #
 
 #
-# Copyright (c) 2018, Joyent, Inc.
+# Copyright (c) 2019, Joyent, Inc.
 #
 
 #
@@ -133,6 +133,18 @@ dumpvar:
 		exit 1; \
 	fi
 	@echo "$(VAR) is '$($(VAR))'"
+
+# Here "cutting a release" is just tagging the current commit with
+# "v(package.json version)". We don't publish this to npm.
+.PHONY: cutarelease
+cutarelease:
+	@echo "# Ensure working copy is clean."
+	[[ -z `git status --short` ]]  # If this fails, the working dir is dirty.
+	@echo "# Ensure have 'json' tool."
+	which json 2>/dev/null 1>/dev/null
+	ver=$(shell cat package.json | json version) && \
+	    git tag "v$$ver" && \
+	    git push origin "v$$ver"
 
 include ./tools/mk/Makefile.deps
 ifeq ($(shell uname -s),SunOS)
