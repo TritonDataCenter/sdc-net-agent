@@ -33,20 +33,22 @@ JSSTYLE_FILES =		$(JS_FILES)
 JSSTYLE_FLAGS =		-o indent=4,doxygen,unparenthesized-return=0
 ESLINT_FILES =		$(JS_FILES)
 
-NODE_PREBUILT_VERSION =	v4.6.1
 
 ifeq ($(shell uname -s),SunOS)
-NODE_PREBUILT_TAG =	gz
-# sdc-minimal-multiarch-lts 15.4.1
-NODE_PREBUILT_IMAGE =	18b094b0-eb01-11e5-80c1-175dac7ddf02
+	NODE_PREBUILT_VERSION =	v4.6.1
+	NODE_PREBUILT_TAG =	gz
+	# sdc-minimal-multiarch-lts 15.4.1
+	NODE_PREBUILT_IMAGE =	18b094b0-eb01-11e5-80c1-175dac7ddf02
 endif
 
 # Included definitions
 include ./tools/mk/Makefile.defs
 ifeq ($(shell uname -s),SunOS)
-include ./tools/mk/Makefile.node_prebuilt.defs
+	include ./tools/mk/Makefile.node_prebuilt.defs
 else
-include ./tools/mk/Makefile.node.defs
+	NODE := node
+	NPM := $(shell which npm)
+	NPM_EXEC= $(NPM)
 endif
 include ./tools/mk/Makefile.node_deps.defs
 include ./tools/mk/Makefile.smf.defs
