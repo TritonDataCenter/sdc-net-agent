@@ -1,5 +1,6 @@
 /node_modules
 /tmp
+bits
 build
 docs/*.json
 docs/*.html
