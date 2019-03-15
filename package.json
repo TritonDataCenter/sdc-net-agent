@@ -12,7 +12,7 @@
         "jsprim": "1.4.1",
         "kang": "1.2.0",
         "lstream": "0.0.4",
-        "mooremachine": "2.2.0",
+        "mooremachine": "2.3.0",
         "restify": "4.3.0",
         "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#aefc119",
         "sdc-clients": "^10.5.0",
