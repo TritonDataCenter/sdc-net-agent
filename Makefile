@@ -103,6 +103,7 @@ release: all deps docs $(SMF_MANIFESTS)
 	    $(TOP)/package.json \
 	    $(TOP)/sapi_manifests \
 	    $(TOP)/smf \
+	    $(TOP)/test \
 	    $(TOP)/npm \
 	    $(RELSTAGEDIR)/$(NAME)
 	cp -PR $(NODE_INSTALL) $(RELSTAGEDIR)/$(NAME)/node

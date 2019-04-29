@@ -19,6 +19,13 @@ var test = require('tape');
 
 // --- Tests
 
+test('Get net-agent version', function (t) {
+    var version = mod_common.getNetAgentVersion();
+
+    t.equal(typeof (version), 'string');
+    t.end();
+});
+
 test('hasChanged() tests', function (t) {
     var OBJ1 = { a: 5, b: [ 1, 2, 3, 4 ] };
     var OBJ2 = { a: 6, b: [ 1, 2, 3, 4 ] };
