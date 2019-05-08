@@ -16,6 +16,7 @@
         "restify": "4.3.0",
         "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#aefc119",
         "sdc-clients": "^10.5.0",
+        "tape": "4.5.1",
         "triton-mockcloud-common": "git+http://github.com/joyent/triton-mockcloud-common.git#master",
         "triton-netconfig": "1.1.0",
         "uuid": "3.2.1",

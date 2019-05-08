@@ -59,7 +59,7 @@ NAME :=			net-agent
 RELEASE_TARBALL :=	$(NAME)-$(STAMP).tgz
 RELEASE_MANIFEST :=	$(NAME)-$(STAMP).manifest
 RELSTAGEDIR :=		/tmp/$(NAME)-$(STAMP)
-NODEUNIT =		$(TOP)/node_modules/.bin/nodeunit
+TAPE =			$(TOP)/node_modules/.bin/tape
 
 #
 # Due to the unfortunate nature of npm, the Node Package Manager, there appears
@@ -78,14 +78,14 @@ RUN_NPM_INSTALL =	$(NPM_ENV) $(NPM) install
 all: $(SMF_MANIFESTS) | $(NPM_EXEC) $(REPO_DEPS)
 	$(RUN_NPM_INSTALL)
 
-$(NODEUNIT): | $(NPM_EXEC)
+$(TAPE): | $(NPM_EXEC)
 	$(RUN_NPM_INSTALL)
 
 CLEAN_FILES += $(TAP) ./node_modules/tap
 
 .PHONY: test
-test: $(TAP)
-	TAP=1 $(TAP) test/*.test.js
+test: $(TAPE)
+	$(NODE) $(TAPE) test/unit/*.test.js
 
 .PHONY: release
 release: all deps docs $(SMF_MANIFESTS)
