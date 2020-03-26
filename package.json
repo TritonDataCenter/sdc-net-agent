@@ -30,7 +30,8 @@
     },
     "devDependencies": {
         "eslint": "^4.13.1",
-        "eslint-plugin-joyent": "~2.1.0"
+        "eslint-plugin-joyent": "~2.1.0",
+        "esquery": "1.1.0"
     },
     "scripts": {
         "postinstall": "npm/postinstall.sh",
