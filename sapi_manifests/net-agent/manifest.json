@@ -1,5 +1,6 @@
 {
-	"name": "net-agent",
-	"path": "/opt/smartdc/agents/etc/net-agent.config.json",
-	"post_cmd": "[[ $(svcs -Ho state net-agent) == 'online' ]] && /usr/sbin/svcadm restart net-agent || /usr/sbin/svcadm enable net-agent"
+    "name": "net-agent",
+    "path": "/opt/smartdc/agents/etc/net-agent.config.json",
+    "post_cmd": "[[ $(svcs -Ho state net-agent) == 'online' ]] && /usr/sbin/svcadm restart net-agent || /usr/sbin/svcadm enable net-agent",
+    "post_cmd_linux": "[[ $(systemctl is-active triton-net-agent) == 'active']] && systemctl reload-or-restart triton-net-agent || systemctl enable triton-net-agent; systemctl start triton-net-agent"
 }
