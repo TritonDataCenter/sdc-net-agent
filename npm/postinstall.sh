@@ -104,8 +104,8 @@ function import_smf_manifest
 #
 function import_system_services
 {
-    local agent_service_in="$ROOT/systemd/triton-network-agent.service.in"
-    local agent_service_out="/etc/systemd/system/triton-network-agent.service"
+    local agent_service_in="$ROOT/systemd/triton-net-agent.service.in"
+    local agent_service_out="/etc/systemd/system/triton-net-agent.service"
 
     if [[ ! -f "${agent_service_in}" ]]; then
         fatal 'could not find systemd service input file: %s' "${agent_service_in}"

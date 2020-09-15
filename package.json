@@ -7,7 +7,7 @@
     "dependencies": {
         "assert-plus": "^1.0.0",
         "bunyan": "1.8.12",
-        "changefeed": "~1.5.0",
+        "changefeed": "~1.5.1",
         "cueball": "2.5.1",
         "forkexec": "1.1.0",
         "jsprim": "1.4.1",
