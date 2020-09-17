@@ -39,8 +39,11 @@ export VERSION="$npm_package_version"
 export ENABLED="true"
 
 AGENT="$npm_package_name"
-
-BOOTPARAMS=/usr/bin/bootparams
+if [[ "$(uname)" == "Linux" ]]; then
+    BOOTPARAMS=/usr/bin/echo
+else
+    BOOTPARAMS=/usr/bin/bootparams
+fi
 AWK=/usr/bin/awk
 
 
@@ -106,16 +109,19 @@ function import_system_services
 {
     local agent_service_in="$ROOT/systemd/triton-net-agent.service.in"
     local agent_service_out="/etc/systemd/system/triton-net-agent.service"
+    local agent_service_keep="$ROOT/systemd/triton-net-agent.service"
 
     if [[ ! -f "${agent_service_in}" ]]; then
         fatal 'could not find systemd service input file: %s' "${agent_service_in}"
     fi
 
     if ! subfile "${agent_service_in}" "${agent_service_out}" ||
-      ! systemctl enable "${agent_service_out}" ||
-      ! systemctl start "${agent_service_out}"; then
+      ! systemctl enable "net-agent" ||
+      ! systemctl start "net-agent"; then
         fatal 'could not process systemd service (%s)' "${agent_service_in}"
     fi
+
+    cp "${agent_service_out}" "${agent_service_keep}"
 }
 
 #

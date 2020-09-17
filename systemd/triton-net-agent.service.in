@@ -19,7 +19,7 @@ After=network.target
 [Service]
 Environment=PATH=/usr/node/bin:/usr/triton/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Type=simple
-ExecStart=/usr/node/bin/node --abort_on_uncaught_exception @@PREFIX@@/bin/net-agent.js &amp;
+ExecStart=/usr/node/bin/node --abort_on_uncaught_exception @@PREFIX@@/bin/net-agent &amp;
 
 [Install]
 WantedBy=multi-user.target
