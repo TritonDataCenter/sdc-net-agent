@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2018 Joyent, Inc.
+ * Copyright 2020 Joyent, Inc.
  */
 
 /*
@@ -16,7 +16,6 @@
 
 var child_process = require('child_process');
 var fs = require('fs');
-var path = require('path');
 
 var assert = require('assert-plus');
 var bunyan = require('bunyan');
@@ -24,7 +23,6 @@ var bunyanSerializers = require('sdc-bunyan-serializers');
 var DummyVmadm = require('vmadm/lib/index.dummy_vminfod');
 var mockcloud_common = require('triton-mockcloud-common');
 var netconfig = require('triton-netconfig');
-var uuidv4 = require('uuid/v4');
 var vasync = require('vasync');
 
 var NetAgent = require('../lib');
@@ -45,7 +43,7 @@ function mdataGet(key, callback) {
 
     child_process.execFile('/usr/sbin/mdata-get', [
         key
-    ], function _onMdata(err, stdout, stderr) {
+    ], function _onMdata(err, stdout, _stderr) {
         assert.ifError(err, 'mdata-get should always work');
 
         callback(null, stdout.trim());
@@ -70,7 +68,6 @@ function loadSysinfo(server_uuid, callback) {
 
 function findZoneAdminIp(ctx, callback) {
     mdataGet('sdc:nics', function _onMdata(err, nicsData) {
-        var idx;
         var nics;
 
         try {
@@ -90,8 +87,7 @@ function findZoneAdminIp(ctx, callback) {
 }
 
 function findUfdsAdminUuid(ctx, callback) {
-    mdataGet('ufdsAdmin', function _onMdata(err, data) {
-
+    mdataGet('ufdsAdmin', function _onMdata(_err, data) {
         ctx.ufdsAdminUuid = data.toString();
         assert.uuid(ctx.ufdsAdminUuid, 'ctx.ufdsAdminUuid');
 
@@ -100,8 +96,7 @@ function findUfdsAdminUuid(ctx, callback) {
 }
 
 function findDnsDomain(ctx, callback) {
-    mdataGet('dnsDomain', function _onMdata(err, data) {
-
+    mdataGet('dnsDomain', function _onMdata(_err, data) {
         ctx.dnsDomain = data.toString();
         assert.string(ctx.dnsDomain, 'ctx.dnsDomain');
 
@@ -110,8 +105,7 @@ function findDnsDomain(ctx, callback) {
 }
 
 function findDatacenterName(ctx, callback) {
-    mdataGet('sdc:datacenter_name', function _onMdata(err, data) {
-
+    mdataGet('sdc:datacenter_name', function _onMdata(_err, data) {
         ctx.datacenterName = data.toString();
         assert.string(ctx.datacenterName, 'ctx.datacenterName');
 
@@ -175,10 +169,10 @@ function runServer(opts, callback) {
 
         getNetAgentInstanceId({
             serverUuid: opts.serverUuid
-        }, function _onInstanceId(err, instanceUuid) {
+        }, function _onInstanceId(err2, instanceUuid) {
             var netagent;
 
-            assert.ifError(err);
+            assert.ifError(err2);
             config.agent_uuid = instanceUuid;
 
             netagent = new NetAgent(config);
@@ -220,7 +214,7 @@ function main() {
                     }, cb);
                 },
                 inputs: dirs
-            }, function _forEachPipelineComplete(forEachPipelineErr) {
+            }, function _forEachPipelineComplete() {
                 logger.info('startup sequence complete');
             });
         });

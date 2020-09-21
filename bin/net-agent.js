@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright 2018 Joyent, Inc.
+ * Copyright 2020 Joyent, Inc.
  * Copyright 2022 MNX Cloud, Inc.
  */
 
@@ -27,6 +27,7 @@ var logger = bunyan.createLogger({
 });
 
 var NetAgent = require('../lib');
+var mod_common = require('../lib/common');
 
 var NET_AGENT_CONFIG_PATH = '/opt/smartdc/agents/etc/net-agent.config.json';
 var NET_AGENT_CONFIG_SLEEP = 10000;
@@ -74,7 +75,15 @@ loadConfig(function afterLoadConfig(err, config) {
 
     config.log = logger;
 
-    var netagent = new NetAgent(config);
+    mod_common.loadSysinfo(function (err2, sysinfo) {
+        if (err2) {
+            logger.fatal('Failed to load sysinfo for net-agent configuration');
+            process.exit(1);
+        }
+        config.sysinfo = sysinfo;
 
-    netagent.start();
+        var netagent = new NetAgent(config);
+
+        netagent.start();
+    });
 });
