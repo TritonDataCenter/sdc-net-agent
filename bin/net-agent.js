@@ -5,7 +5,8 @@
  */
 
 /*
- * Copyright (c) 2018 Joyent, Inc.
+ * Copyright 2018 Joyent, Inc.
+ * Copyright 2022 MNX Cloud, Inc.
  */
 
 /*
@@ -22,7 +23,7 @@ var logLevel = (process.env.LOG_LEVEL || 'debug');
 var logger = bunyan.createLogger({
     name: 'net-agent',
     level: logLevel,
-    serializers: bunyanSerializers
+    serializers: bunyanSerializers.serializers
 });
 
 var NetAgent = require('../lib');
