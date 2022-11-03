@@ -6,6 +6,7 @@
 
 #
 # Copyright 2019 Joyent, Inc.
+# Copyright 2022 MNX Cloud, Inc.
 #
 
 #
@@ -97,12 +98,13 @@ release: all deps docs $(SMF_MANIFESTS)
 	    $(TOP)/lib \
 	    $(TOP)/Makefile \
 	    $(TOP)/node_modules \
-	    $(TOP)/package.json \
 	    $(TOP)/sapi_manifests \
 	    $(TOP)/smf \
 	    $(TOP)/test \
 	    $(TOP)/npm \
 	    $(RELSTAGEDIR)/$(NAME)
+	json -f $(TOP)/package.json -e 'this.version += "-$(STAMP)"' \
+	    > $(RELSTAGEDIR)/$(NAME)/package.json
 	cp -PR $(NODE_INSTALL) $(RELSTAGEDIR)/$(NAME)/node
 	uuid -v4 > $(RELSTAGEDIR)/$(NAME)/image_uuid
 	cd $(RELSTAGEDIR) && $(TAR) -I pigz -cf $(TOP)/$(RELEASE_TARBALL) *
