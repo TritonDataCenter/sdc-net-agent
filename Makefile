@@ -6,6 +6,7 @@
 
 #
 # Copyright 2019 Joyent, Inc.
+# Copyright 2023 MNX Cloud, Inc.
 #
 
 #
@@ -35,10 +36,10 @@ ESLINT_FILES =		$(JS_FILES)
 
 
 ifeq ($(shell uname -s),SunOS)
-	NODE_PREBUILT_VERSION =	v4.6.1
+	NODE_PREBUILT_VERSION =	v6.17.0
 	NODE_PREBUILT_TAG =	gz
-	# sdc-minimal-multiarch-lts 15.4.1
-	NODE_PREBUILT_IMAGE =	18b094b0-eb01-11e5-80c1-175dac7ddf02
+	# minimal-64-lts 18.4.0
+	NODE_PREBUILT_IMAGE =	c2c31b00-1d60-11e9-9a77-ff9f06554b0f
 endif
 
 # Included definitions
