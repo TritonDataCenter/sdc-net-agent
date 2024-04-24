@@ -1,8 +1,8 @@
 {
     "name": "net-agent",
     "description": "Triton Network Agent",
-    "version": "2.3.5",
-    "author": "Joyent (joyent.com)",
+    "version": "2.3.6",
+    "author": "MNX Cloud (mnx.io)",
     "private": true,
     "dependencies": {
         "assert-plus": "^1.0.0",
@@ -15,10 +15,10 @@
         "lstream": "0.0.4",
         "mooremachine": "2.3.0",
         "restify": "4.3.0",
-        "sdc-bunyan-serializers": "git+https://github.com/joyent/sdc-bunyan-serializers.git#8fdb844",
+        "sdc-bunyan-serializers": "git+https://github.com/TritonDataCenter/sdc-bunyan-serializers.git#8fdb844",
         "sdc-clients": "^10.5.0",
         "tape": "4.5.1",
-        "triton-mockcloud-common": "git+http://github.com/joyent/triton-mockcloud-common.git#820ec9fc944e1fd649b81f6f0e95006e83db9c24",
+        "triton-mockcloud-common": "git+http://github.com/TritonDataCenter/triton-mockcloud-common.git#820ec9fc944e1fd649b81f6f0e95006e83db9c24",
         "triton-netconfig": "1.5.0",
         "uuid": "3.2.1",
         "vasync": "^1.6.4",
