@@ -20,7 +20,7 @@
         "tape": "4.5.1",
         "triton-mockcloud-common": "git+http://github.com/TritonDataCenter/triton-mockcloud-common.git#820ec9fc944e1fd649b81f6f0e95006e83db9c24",
         "triton-netconfig": "1.5.0",
-        "uuid": "3.2.1",
+        "uuid": "14.0.0",
         "vasync": "^1.6.4",
         "verror": "^1.6.1",
         "vmadm": "1.3.0"
